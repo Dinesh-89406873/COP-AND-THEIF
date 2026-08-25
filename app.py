@@ -1,4 +1,4 @@
-import os, random, string, sqlite3
+import os, random, string, sqlite3, time
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_socketio import SocketIO, join_room, emit
@@ -11,12 +11,12 @@ DB = os.path.join(os.path.dirname(__file__), "database.db")
 CHARACTERS = {
     "King": {"tamil": "இராசா / அரசன்", "points": 1000},
     "Queen": {"tamil": "ராணி / அரசி", "points": 800},
-    "Prime Minister": {"tamil": "மந்திரி", "points": 700},
-    "Chief Judge": {"tamil": "நீதிபதி", "points": 600},
-    "Commander": {"tamil": "சேனாபதி", "points": 550},
+    "Prime Minister": {"tamil": "மந்திரி", "points": 400},
+    "Chief Judge": {"tamil": "நீதிபதி", "points": 350},
+    "Commander": {"tamil": "சேனாபதி", "points": 300},
     "Police": {"tamil": "காவல்துறை", "points": 500},
-    "Soldier": {"tamil": "படைவீரர்", "points": 400},
-    "Courtier": {"tamil": "சபையோர்", "points": 300},
+    "Soldier": {"tamil": "படைவீரர்", "points": 250},
+    "Courtier": {"tamil": "சபையோர்", "points": 200},
     "Citizen": {"tamil": "குடிமகன்", "points": 100},
     "Thief": {"tamil": "திருடன் / கள்ளன்", "points": 0},
 }
@@ -241,11 +241,23 @@ def create():
             return render_template("create_game.html", error="King, Queen, Police and Thief are mandatory.", chars=CHARACTERS)
         if len(selected)<4 or len(selected)>10:
             return render_template("create_game.html", error="Select between 4 and 10 characters.", chars=CHARACTERS)
+        timer_raw=(request.form.get("police_timer_seconds") or "60").strip()
+        try:
+            if ":" in timer_raw:
+                mm,ss=timer_raw.split(":",1)
+                timer_seconds=int(mm)*60+int(ss)
+            else:
+                timer_seconds=int(timer_raw)
+        except (ValueError,TypeError):
+            return render_template("create_game.html", error="Police timer must be between 1 and 60 seconds (for example 60 or 0:45).", chars=CHARACTERS)
+        if not 1 <= timer_seconds <= 60:
+            return render_template("create_game.html", error="Police timer must be between 1 and 60 seconds.", chars=CHARACTERS)
         room=code()
         rooms[room]={
-            "host":session["username"], "players":{}, "characters":selected,
+            "_room_code":room, "host":session["username"], "players":{}, "characters":selected,
             "started":False, "closed":False, "final_results":None,
-            "round_number":0, "round_history":[], "last_reveal":None
+            "police_timer_seconds":timer_seconds,
+            "round_number":0, "round_history":[], "last_reveal":None, "round_started_at":None, "police_deadline":None, "police_sheet_viewed":False, "police_timer_round":0
         }
         rooms[room]["players"][session["username"]]=new_player(session["username"],False)
         return redirect(url_for("room",room_code=room))
@@ -322,12 +334,18 @@ def room_api(room_code):
     r=rooms.get(room_code)
     if not r:return jsonify({"error":"Room not found"}),404
     closed=bool(r.get("closed"))
+    police=next((p for p in r["players"].values() if p.get("character")=="Police"),None)
+    deadline=r.get("police_deadline")
+    remaining=max(0,int(deadline-time.time())) if deadline and r.get("police_sheet_viewed") and not r.get("last_reveal") and not closed else 0
     return jsonify({
         "host":r["host"],"started":r["started"],"closed":closed,
         "round":r.get("round_number",0),
         "players":[public_player(p,closed) for p in r["players"].values()],
         "round_history":r.get("round_history",[]),
-        "last_reveal":r.get("last_reveal") if r.get("last_reveal") else None
+        "last_reveal":r.get("last_reveal") if r.get("last_reveal") else None,
+        "police":police.get("username") if police else None,
+        "police_system":bool(police and police.get("system")),
+        "timer_remaining":remaining,"police_deadline":deadline,"police_sheet_viewed":bool(r.get("police_sheet_viewed")),"police_timer_seconds":r.get("police_timer_seconds",60)
     })
 
 @app.route("/api/my-sheet/<room_code>")
@@ -335,8 +353,21 @@ def room_api(room_code):
 def my_sheet(room_code):
     r=rooms.get(room_code); p=r["players"].get(session["username"]) if r else None
     if not p or not p["character"]: return jsonify({"error":"Sheet not assigned"}),404
+    p["viewed"] = True
+    # The Police clock starts ONLY after the Police opens their private sheet.
+    if p.get("character")=="Police" and r.get("started") and not r.get("closed") and not r.get("last_reveal") and not r.get("police_sheet_viewed"):
+        r["police_sheet_viewed"] = True
+        r["police_deadline"] = time.time() + r.get("police_timer_seconds",60)
+        r["police_timer_round"] = r.get("round_number", 0)
+        room_code_local=room_code
+        socketio.start_background_task(_round_timer, room_code_local, r.get("round_number", 0))
+        emit_data={"round":r.get("round_number",0),"police_deadline":r["police_deadline"]}
+        socketio.emit("police_timer_started", emit_data, room=room_code)
+        police=p
+        if police.get("system"):
+            pass
     c=CHARACTERS[p["character"]]
-    return jsonify({"character":p["character"],"tamil":c["tamil"],"base_points":c["points"]})
+    return jsonify({"character":p["character"],"tamil":c["tamil"],"role_points":c["points"],"base_points":c["points"],"score":p.get("score",0),"timer_started":bool(r.get("police_sheet_viewed")),"police_timer_seconds":r.get("police_timer_seconds",60)})
 
 @app.route("/api/results/<room_code>")
 @login_required
@@ -406,8 +437,30 @@ def assign_round(r, first=False):
     random.shuffle(chars)
     for name,p in r["players"].items():
         p["character"]=chars.pop(0); p["viewed"]=False; p["guessed"]=False
-        if first: p["score"]=CHARACTERS[p["character"]]["points"]
     r["last_reveal"]=None
+
+def award_round_role_points(r):
+    """Add each non-Police/non-Thief role's value once for the current round.
+
+    Police and Thief NEVER receive their role value as a base score. Their score
+    changes only through the Police lock/timeout rules (+500 to the correct side).
+    """
+    round_no = r.get("round_number", 1)
+    if r.get("role_points_awarded_round") == round_no:
+        return []
+
+    awarded=[]
+    for p in r["players"].values():
+        role=p.get("character")
+        if role in ("Police", "Thief"):
+            continue
+        points=CHARACTERS.get(role, {}).get("points", 0)
+        p["score"] = p.get("score", 0) + points
+        if points:
+            awarded.append({"username":p["username"],"character":role,"points":points})
+
+    r["role_points_awarded_round"] = round_no
+    return awarded
 
 @socketio.on("start_game")
 def start_game(data):
@@ -427,8 +480,29 @@ def start_game(data):
     r["characters"]=r["characters"][:len(r["players"])]
     assign_round(r,True)
     r["started"]=True; r["closed"]=False; r["round_number"]=1
-    r["round_history"]=[]; r["last_reveal"]=None; r["kint_active"]={}
-    emit("game_started",{"round":1},room=room)
+    r["round_history"]=[]; r["last_reveal"]=None; r["kint_active"]={}; r["system_king_pending"]=False
+    r["role_points_awarded_round"] = 0
+    r["round_started_at"]=time.time()
+    round_role_points = award_round_role_points(r)
+    r["current_round_role_points"] = round_role_points
+    r["police_deadline"]=None
+    r["police_sheet_viewed"]=False
+    r["police_timer_round"]=0
+    emit("game_started",{"round":1,"police_deadline":None,"role_points_added":round_role_points},room=room)
+    police=next((p for p in r["players"].values() if p["character"]=="Police"),None)
+    if police and police.get("system"):
+        # System Police behaves like a normal player: it opens its sheet first, then the 60s clock starts.
+        police["viewed"] = True
+        r["police_sheet_viewed"] = True
+        r["police_deadline"] = time.time()+r.get("police_timer_seconds",60)
+        r["police_timer_round"] = 1
+        socketio.start_background_task(_round_timer,room,1)
+        socketio.emit("police_timer_started",{"round":1,"police_deadline":r["police_deadline"]},room=room)
+        candidates=[p["username"] for p in r["players"].values() if p["username"]!=police["username"]]
+        if candidates:
+            limit=max(1,r.get("police_timer_seconds",60))
+            delay=random.uniform(1,max(1,limit-1)) if limit>1 else 0.2
+            socketio.start_background_task(_system_police_act,room,1,random.choice(candidates),delay)
 
 def build_reveal(r, record):
     # Only called after the Police locks. This is the public reveal for the round.
@@ -454,20 +528,61 @@ def finish_guess(r, police, thief, guess):
     record={"round":r.get("round_number",1),"police":police["username"],"guessed":guess,
             "thief":thief["username"],"correct":correct,"outcome":outcome,
             "points_added":{"username":police["username"] if correct else thief["username"],"points":500},
+            "round_role_points": r.get("current_round_role_points", []),
             "round_complete":True}
     r["last_reveal"]=build_reveal(r,record)
     record["players"]=r["last_reveal"]["players"]
     r["round_history"].append(record)
+    r["police_deadline"]=None
+    r["police_sheet_viewed"]=False
+    r["police_timer_round"]=0
+    _maybe_schedule_system_king(r.get("_room_code")) if r.get("_room_code") else None
     return record
 
-def _system_police_guess(room, guess):
+def _round_timer(room, round_number):
+    # Server-authoritative police window configured when the room was created.
+    socketio.sleep(r.get("police_timer_seconds",60) if (r:=rooms.get(room)) else 60)
     r=rooms.get(room)
     if not r or r.get("closed") or not r.get("started"): return
-    police=next((p for p in r["players"].values() if p["character"]=="Police"),None)
-    thief=next((p for p in r["players"].values() if p["character"]=="Thief"),None)
+    if r.get("round_number")!=round_number or r.get("last_reveal") or not r.get("police_sheet_viewed") or r.get("police_timer_round")!=round_number: return
+    police=next((p for p in r["players"].values() if p.get("character")=="Police"),None)
+    thief=next((p for p in r["players"].values() if p.get("character")=="Thief"),None)
     if not police or not thief or police.get("guessed"): return
-    record=finish_guess(r,police,thief,guess)
+
+    thief["score"]+=500
+    police["guessed"]=True
+    record={"round":r.get("round_number",1),"police":police["username"],"guessed":None,
+            "thief":thief["username"],"correct":False,"timed_out":True,
+            "outcome":f"TIME OUT! Police did not lock within {r.get('police_timer_seconds',60)} seconds. {thief['username']} is the Thief and gets +500.",
+            "points_added":{"username":thief["username"],"points":500},
+            "round_role_points": r.get("current_round_role_points", []),
+            "round_complete":True}
+    r["last_reveal"]=build_reveal(r,record)
+    record["players"]=r["last_reveal"]["players"]
+    r["round_history"].append(record)
+    r["police_deadline"]=None
+    r["police_sheet_viewed"]=False
+    r["police_timer_round"]=0
+    emit("police_timeout",record,room=room)
+    _maybe_schedule_system_king(room)
+
+def _system_police_act(room, round_number, guess, delay):
+    # System players behave like a normal player: they think for a while, then lock.
+    socketio.sleep(delay)
+    r=rooms.get(room)
+    if not r or r.get("closed") or not r.get("started") or r.get("round_number")!=round_number:
+        return
+    police=next((p for p in r["players"].values() if p.get("character")=="Police"),None)
+    if not police or not police.get("system") or police.get("guessed") or r.get("last_reveal"):
+        return
+    thief=next((p for p in r["players"].values() if p.get("character")=="Thief"),None)
+    if not thief: return
+    # A human-like system may be right or wrong; it never gets special information.
+    target=thief["username"] if random.random()<0.65 else random.choice([p["username"] for p in r["players"].values() if p["username"]!=police["username"]])
+    record=finish_guess(r,police,thief,target)
+    r["police_deadline"]=None
     emit("guess_result",record,room=room)
+    _maybe_schedule_system_king(room)
 
 @socketio.on("police_guess")
 def police_guess(data):
@@ -481,10 +596,60 @@ def police_guess(data):
         emit("guess_error",{"message":"Only the Police player can lock the guess."},to=request.sid); return
     if police.get("guessed"):
         emit("guess_error",{"message":"The Police guess is already locked."},to=request.sid); return
+    if not r.get("police_sheet_viewed"):
+        emit("guess_error",{"message":"Open your Police sheet first. The 60-second clock starts when you view it."},to=request.sid); return
+    if r.get("police_deadline") and time.time() >= r["police_deadline"]:
+        emit("guess_error",{"message":f"⏰ {r.get('police_timer_seconds',60)} seconds are over. The Thief gets the +500 bonus."},to=request.sid); return
     if guess not in r["players"] or guess==police["username"]:
         emit("guess_error",{"message":"Please select a valid player."},to=request.sid); return
     record=finish_guess(r,police,thief,guess)
     emit("guess_result",record,room=room)
+    _maybe_schedule_system_king(room)
+
+def _maybe_schedule_system_king(room):
+    r=rooms.get(room)
+    if not r or r.get("closed") or not r.get("last_reveal"): return
+    king=next((p for p in r["players"].values() if p.get("character")=="King"),None)
+    if king and king.get("system") and not r.get("system_king_pending"):
+        r["system_king_pending"]=True
+        socketio.start_background_task(_system_king_next,room,r.get("round_number",1))
+
+def _advance_round(room):
+    r=rooms.get(room)
+    if not r or not r.get("started") or r.get("closed"): return False
+    r["round_number"]+=1
+    assign_round(r)
+    r["round_started_at"]=time.time()
+    r["police_deadline"]=None
+    r["police_sheet_viewed"]=False
+    r["police_timer_round"]=0
+    r["system_king_pending"]=False
+    round_role_points = award_round_role_points(r)
+    r["current_round_role_points"] = round_role_points
+    emit("new_round",{"round":r["round_number"],"police_deadline":None,"role_points_added":round_role_points},room=room)
+
+    police=next((p for p in r["players"].values() if p["character"]=="Police"),None)
+    if police and police.get("system"):
+        police["viewed"] = True
+        r["police_sheet_viewed"] = True
+        r["police_deadline"] = time.time()+r.get("police_timer_seconds",60)
+        r["police_timer_round"] = r["round_number"]
+        socketio.start_background_task(_round_timer,room,r["round_number"])
+        socketio.emit("police_timer_started",{"round":r["round_number"],"police_deadline":r["police_deadline"]},room=room)
+        candidates=[p["username"] for p in r["players"].values() if p["username"]!=police["username"]]
+        if candidates:
+            limit=max(1,r.get("police_timer_seconds",60))
+            delay=random.uniform(1,max(1,limit-1)) if limit>1 else 0.2
+            socketio.start_background_task(_system_police_act,room,r["round_number"],random.choice(candidates),delay)
+    return True
+
+def _system_king_next(room, completed_round):
+    socketio.sleep(15)
+    r=rooms.get(room)
+    if not r or r.get("closed") or r.get("round_number")!=completed_round or not r.get("last_reveal"):
+        if r: r["system_king_pending"]=False
+        return
+    _advance_round(room)
 
 @socketio.on("next_round")
 def next_round(data):
@@ -494,23 +659,22 @@ def next_round(data):
     if not king or session.get("username")!=king.get("username"):
         emit("start_error",{"message":"Only the King can start the next round."},to=request.sid); return
     if not r.get("last_reveal"):
-        emit("start_error",{"message":"Police must lock the guess first."},to=request.sid); return
-    r["round_number"]+=1
-    assign_round(r)
-    emit("new_round",{"round":r["round_number"]},room=room)
-    police=next((p for p in r["players"].values() if p["character"]=="Police"),None)
-    if police and police.get("system"):
-        candidates=[p["username"] for p in r["players"].values() if p["username"]!=police["username"]]
-        if candidates:
-            socketio.start_background_task(_system_police_guess,room,random.choice(candidates))
+        emit("start_error",{"message":"Police must lock the guess or the 60 second timer must expire first."},to=request.sid); return
+    _advance_round(room)
 
 @socketio.on("close_game")
 def close_game(data):
     room=data["room"]; r=rooms.get(room)
     if not r or not r["started"] or r.get("closed"): return
-    if session.get("username")!=r["host"]:
-        emit("close_error",{"message":"Only the game host can close the game."},to=request.sid); return
+    king=next((p for p in r["players"].values() if p.get("character")=="King"),None)
+    if not king or session.get("username")!=king.get("username"):
+        emit("close_error",{"message":"Only the King can close the game."},to=request.sid); return
+    if r.get("round_number",0)>0 and not r.get("last_reveal"):
+        emit("close_error",{"message":"Complete the current round before closing the game."},to=request.sid); return
     r["closed"]=True
+    r["police_deadline"]=None
+    r["police_sheet_viewed"]=False
+    r["police_timer_round"]=0
     rows=sorted(r["players"].values(),key=lambda x:x["score"],reverse=True)
     results=[]
     for i,p in enumerate(rows,1):
