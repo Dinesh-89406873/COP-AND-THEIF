@@ -1,0 +1,35 @@
+<!doctype html><html><head><title>Game Room</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body><div class="container"><header><h1>🎲 Game Room</h1><a href="/dashboard">Home</a></header>
+<div class="card">
+<h2>Room Code: <span class="code">{{room_code}}</span></h2>
+<p>Share this code with friends, or invite accepted friends below.</p>
+<div id="players"></div>
+<div id="friendInvites"></div>
+<button onclick="addSystem()">Add System Players</button>
+<button onclick="startGame()">START GAME</button>
+<div id="notice" class="result-box"></div>
+</div></div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const room="{{room_code}}", host="{{host}}", currentUser="{{session.get('username','')}}";
+const socket=io(); socket.emit("join_room_game",{room});
+async function loadFriends(){
+  const d=await (await fetch("/api/friends")).json();
+  if(currentUser!==host){document.getElementById("friendInvites").innerHTML="";return;}
+  document.getElementById("friendInvites").innerHTML=`<h3>🤝 Invite Friends</h3>`+
+    (d.friends.length?d.friends.map(f=>`<button class="friend-chip" onclick="inviteFriend('${escapeAttr(f.username)}')">＋ ${escapeHtml(f.username)}</button>`).join(""):
+    "<small>Accept friends on Home first.</small>");
+}
+function draw(d){
+ document.getElementById("players").innerHTML="<h3>Players in room</h3>"+d.players.map((p,i)=>`<div class="player"><b>${i+1}. ${escapeHtml(p.username)}</b> ${p.system?"🤖 System":"👤 Player"}</div>`).join("");
+}
+function inviteFriend(username){socket.emit("invite_friend",{room,username});}
+function addSystem(){socket.emit("add_system",{room})}
+function startGame(){socket.emit("start_game",{room})}
+socket.on("room_update",draw);
+socket.on("room_notice",d=>document.getElementById("notice").textContent=d.message);
+socket.on("game_started",()=>location.href="/game/"+room);
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+function escapeAttr(s){return escapeHtml(s).replace(/`/g,"&#96;");}
+loadFriends();
+</script></body></html>

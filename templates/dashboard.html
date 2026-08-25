@@ -1,0 +1,76 @@
+<!doctype html>
+<html><head><title>COP AND THEIF</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body><div class="container">
+<header><h1>👑 COP AND THEIF</h1><a href="/logout">Logout</a></header>
+
+<div class="hero home-hero">
+  <div>
+    <h2>Welcome, {{username}} 👋</h2>
+    <p>Your profile picture stays on Home only — it will not appear during gameplay.</p>
+  </div>
+  <div class="home-profile">
+    <img id="homeAvatar" class="home-avatar" alt="Profile">
+    <input id="homePic" type="file" accept="image/*">
+    <small>JPG/PNG/WebP · max 1.5 MB</small>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>🎮 Play</h3>
+    <p>Create a room or join one with a room code.</p>
+    <a class="btn" href="/create">Create Game</a>
+    <a class="btn secondary" href="/join">Join Game</a>
+  </div>
+  <div class="card">
+    <h3>🤝 Friends</h3>
+    <input id="friendSearch" placeholder="Search username">
+    <button onclick="searchFriends()">Find Player</button>
+    <div id="searchResults"></div>
+    <hr>
+    <h4>Friend Requests</h4><div id="requests"></div>
+    <h4>My Friends</h4><div id="friends"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>📜 Rules</h3>
+  <p>King 1000 • Queen 800 • Police 500 • Thief 0</p>
+  <p>When Police locks a guess, everyone sees the guessed player, the real Thief, the revealed sheets, and the updated points.</p>
+</div>
+</div>
+<script>
+async function loadHome(){
+  const me=await (await fetch("/api/me")).json();
+  const img=document.getElementById("homeAvatar");
+  img.src=me.profile_pic || ("https://ui-avatars.com/api/?name="+encodeURIComponent(me.username)+"&background=2b2050&color=fff&size=160");
+  const f=await (await fetch("/api/friends")).json();
+  document.getElementById("requests").innerHTML=f.pending.length?f.pending.map(x=>`
+    <div class="friend-row"><span>${escapeHtml(x.username)}</span>
+    <button onclick="respond(${x.id},'accept')">Accept</button>
+    <button class="secondary" onclick="respond(${x.id},'decline')">Decline</button></div>`).join(""):"<small>No pending requests.</small>";
+  document.getElementById("friends").innerHTML=f.friends.length?f.friends.map(x=>`<div class="friend-row">👤 ${escapeHtml(x.username)}</div>`).join(""):"<small>No friends yet.</small>";
+}
+async function searchFriends(){
+  const q=document.getElementById("friendSearch").value.trim(); if(!q)return;
+  const d=await (await fetch("/api/friends/search?q="+encodeURIComponent(q))).json();
+  document.getElementById("searchResults").innerHTML=d.users.length?d.users.map(x=>`
+    <div class="friend-row"><span>${escapeHtml(x.username)}</span><button onclick="sendRequest('${escapeAttr(x.username)}')">Add Friend</button></div>`).join(""):"<small>No player found.</small>";
+}
+async function sendRequest(username){
+  const d=await (await fetch("/api/friends/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})})).json();
+  alert(d.message||d.error); loadHome();
+}
+async function respond(id,action){
+  await fetch("/api/friends/respond",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request_id:id,action})});
+  loadHome();
+}
+document.getElementById("homePic").onchange=function(){
+  const f=this.files[0]; if(!f)return;
+  if(f.size>1.5*1024*1024){alert("Image must be 1.5 MB or smaller.");this.value="";return;}
+  const r=new FileReader(); r.onload=async()=>{await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile_pic:r.result})});loadHome();}; r.readAsDataURL(f);
+};
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+function escapeAttr(s){return escapeHtml(s).replace(/`/g,"&#96;");}
+loadHome();
+</script></body></html>
