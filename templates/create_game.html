@@ -1,16 +1,22 @@
-<!doctype html><html><head><title>Create Game</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="container"><h1>Create Raja Rani Game</h1>
-{% if error %}<div class="error">{{error}}</div>{% endif %}<form method="post" class="card"><p>Select 4 to 10 characters. King, Queen, Police and Thief are mandatory.</p>
-
-<label><input type="checkbox" name="characters" value="King" checked disabled> King — 1000</label>
-<input type="hidden" name="characters" value="King">
-<label><input type="checkbox" name="characters" value="Queen" checked disabled> Queen — 800</label><input type="hidden" name="characters" value="Queen">
-<label><input type="checkbox" name="characters" value="Police" checked disabled> Police — 500</label><input type="hidden" name="characters" value="Police">
-<label><input type="checkbox" name="characters" value="Thief" checked disabled> Thief — 0</label><input type="hidden" name="characters" value="Thief">
-<hr>
-<label><input type="checkbox" name="characters" value="Prime Minister"> Prime Minister — 700</label>
-<label><input type="checkbox" name="characters" value="Chief Judge"> Chief Judge — 600</label>
-<label><input type="checkbox" name="characters" value="Commander"> Commander — 550</label>
-<label><input type="checkbox" name="characters" value="Soldier"> Soldier — 400</label>
-<label><input type="checkbox" name="characters" value="Courtier"> Courtier — 300</label>
-<label><input type="checkbox" name="characters" value="Citizen"> Citizen — 100</label>
-<button>Create Room</button></form><a href="/dashboard">Back</a></div></body></html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create ARASAN Game</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body><div class="container create-page">
+<header class="topbar"><div class="brand"><span class="brand-crown">♛</span><div><h1>ARASAN</h1><small>ROYAL ARENA</small></div></div><a class="exit-link" href="/dashboard">BACK</a></header>
+<section class="hero-card create-hero"><div><span class="eyebrow">♛ KINGDOM SETUP</span><h1>Create <strong>ARASAN</strong> Game</h1><p class="muted">Set the Police decision window before the game begins. The timer can be customised from <strong>1–60 seconds</strong>.</p></div><div class="round-orb"><span>MAX</span><b>60s</b></div></section>
+{% if error %}<div class="error"><strong>SETUP ERROR:</strong> {{error}}</div>{% endif %}
+<form method="post" class="card create-form">
+<div class="section-head"><div><span class="eyebrow">ROYAL CAST</span><h2>Choose Characters</h2></div><span class="privacy-pill">4–10 PLAYERS</span></div>
+<p class="muted">Each role has <strong>round points</strong>. At the start of each round, the role value is added to the player's total score — <strong>except Police and Thief</strong>. Police and Thief start each round without base role points; only the Police lock/timeout rule can give <strong>+500</strong>.</p>
+<div class="character-grid">
+<label class="role-choice required"><input type="checkbox" checked disabled> <span><b>King</b><small>Royal leader</small></span><strong class="role-points">1000 PTS</strong></label><input type="hidden" name="characters" value="King">
+<label class="role-choice required"><input type="checkbox" checked disabled> <span><b>Queen</b><small>Royal court</small></span><strong class="role-points">800 PTS</strong></label><input type="hidden" name="characters" value="Queen">
+<label class="role-choice required"><input type="checkbox" checked disabled> <span><b>Police</b><small>Find the Thief</small></span><strong class="role-points">500 PTS</strong></label><input type="hidden" name="characters" value="Police">
+<label class="role-choice required"><input type="checkbox" checked disabled> <span><b>Thief</b><small>Stay hidden</small></span><strong class="role-points">0 PTS</strong></label><input type="hidden" name="characters" value="Thief">
+{% for c in chars %}{% if c not in ['King','Queen','Police','Thief'] %}<label class="role-choice"><input type="checkbox" name="characters" value="{{c}}"> <span><b>{{c}}</b><small>{{ {'Prime Minister':'Royal adviser','Chief Judge':'Court judge','Commander':'Army commander','Soldier':'Royal guard','Courtier':'Palace court','Citizen':'Kingdom citizen'}[c] }}</small></span><strong class="role-points">{{ chars[c].points }} PTS</strong></label>{% endif %}{% endfor %}
+</div>
+<div class="timer-setup">
+<div><span class="eyebrow">POLICE TIMER</span><h2>Decision Window</h2><p class="muted">Default is <strong>60 seconds</strong>. Enter seconds or <strong>MM:SS</strong>, but never more than 60 seconds.</p></div>
+<div class="timer-input-wrap"><span>⏱</span><input id="policeTimer" name="police_timer_seconds" type="text" inputmode="numeric" value="60" maxlength="5" aria-label="Police timer"><small>1–60 sec</small></div>
+</div>
+<button class="game-btn gold-btn create-btn" type="submit">♛ CREATE ARASAN KINGDOM</button>
+</form></div></body></html>
