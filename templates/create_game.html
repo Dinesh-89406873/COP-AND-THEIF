@@ -1,0 +1,16 @@
+<!doctype html><html><head><title>Create Game</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="container"><h1>Create Raja Rani Game</h1>
+{% if error %}<div class="error">{{error}}</div>{% endif %}<form method="post" class="card"><p>Select 4 to 10 characters. King, Queen, Police and Thief are mandatory.</p>
+
+<label><input type="checkbox" name="characters" value="King" checked disabled> King — 1000</label>
+<input type="hidden" name="characters" value="King">
+<label><input type="checkbox" name="characters" value="Queen" checked disabled> Queen — 800</label><input type="hidden" name="characters" value="Queen">
+<label><input type="checkbox" name="characters" value="Police" checked disabled> Police — 500</label><input type="hidden" name="characters" value="Police">
+<label><input type="checkbox" name="characters" value="Thief" checked disabled> Thief — 0</label><input type="hidden" name="characters" value="Thief">
+<hr>
+<label><input type="checkbox" name="characters" value="Prime Minister"> Prime Minister — 700</label>
+<label><input type="checkbox" name="characters" value="Chief Judge"> Chief Judge — 600</label>
+<label><input type="checkbox" name="characters" value="Commander"> Commander — 550</label>
+<label><input type="checkbox" name="characters" value="Soldier"> Soldier — 400</label>
+<label><input type="checkbox" name="characters" value="Courtier"> Courtier — 300</label>
+<label><input type="checkbox" name="characters" value="Citizen"> Citizen — 100</label>
+<button>Create Room</button></form><a href="/dashboard">Back</a></div></body></html>
