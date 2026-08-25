@@ -1,61 +1,98 @@
 <!doctype html>
-<html><head><title>Raja Rani Game</title><link rel="stylesheet" href="/static/css/style.css"></head>
-<body>
-<div class="container">
-<header><h1>👑 Raja Rani</h1><a href="/dashboard">Exit</a></header>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARASAN • Arena</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="game-page">
+<div class="container arena">
+<header class="topbar">
+  <div class="brand"><span class="brand-crown">♛</span><div><h1>ARASAN</h1><small>ROYAL ARENA</small></div></div>
+  <a class="exit-link" href="/dashboard">EXIT</a>
+</header>
 
-<div class="card round-banner">
-  <div><span class="eyebrow">LIVE GAME</span><h2>Round <span id="roundNumber">1</span></h2></div>
-  <p id="roundStatus">Keep your sheet secret. Police will lock one player.</p>
-</div>
+<section class="hero-card">
+  <div class="hero-main">
+    <div class="round-orb"><span>ROUND</span><b id="roundNumber">1</b></div>
+    <div>
+      <span class="eyebrow">LIVE TABLE</span>
+      <h2 id="roundStatus">Keep your sheet secret.</h2>
+      <p class="muted">Everyone can see who the Police is. The Thief stays hidden until the Police locks or the timer expires.</p>
+    </div>
+  </div>
+  <div class="timer-panel" id="timerPanel">
+    <span>POLICE WINDOW</span>
+    <strong id="timerValue">WAIT</strong>
+    <small id="timerHint">Open the Police sheet to start</small>
+  </div>
+</section>
 
-<div class="card">
-  <h2>🔒 Your Secret Sheet</h2>
-  <p>Your role is private until Police locks the round.</p>
-  <button id="viewBtn" onclick="viewSheet()">VIEW MY SHEET</button>
-  <div id="sheet" class="secret hidden"></div>
-  <button class="secondary" onclick="hideSheet()">HIDE</button>
-</div>
+<section class="card police-banner" id="policeBanner">
+  <div class="police-icon">👮</div>
+  <div>
+    <span class="eyebrow">POLICE ON DUTY</span>
+    <h2 id="policeName">Finding Police…</h2>
+    <p id="policeMode" class="muted">The Police has 60 seconds to identify one player.</p>
+  </div>
+  <div class="live-dot"><i></i> LIVE</div>
+</section>
 
-<div class="card hidden" id="policeCard">
-  <h2>👮 Police: Lock the Thief</h2>
-  <p>Choose one player. The moment you lock, the result, real Thief, sheets and updated points become visible to everyone.</p>
+<section class="card secret-card">
+  <div class="section-head"><div><span class="eyebrow">PRIVATE</span><h2>🎭 Your Secret Sheet</h2></div><span class="privacy-pill">ONLY YOU</span></div>
+  <p class="muted">Open only when you are ready. Never show your sheet to another player.</p>
+  <button id="viewBtn" class="game-btn gold-btn" onclick="viewSheet()">📜 OPEN MY SHEET</button>
+  <div id="sheet" class="secret-sheet hidden"></div>
+  <button id="hideBtn" class="game-btn ghost-btn hidden" onclick="hideSheet()">📜 CLOSE SHEET</button>
+</section>
+
+<section class="card police-action hidden" id="policeCard">
+  <div class="section-head"><div><span class="eyebrow">YOUR TURN</span><h2>🔒 Lock the Thief</h2></div><span class="danger-pill">60 SEC</span></div>
+  <p class="muted">Watch the table, choose one player, then lock your final decision. You get +500 if correct; otherwise the Thief gets +500.</p>
   <select id="suspect"></select>
-  <button id="guessBtn" onclick="guess()">🔒 LOCK GUESS</button>
+  <button id="guessBtn" class="game-btn lock-btn" onclick="guess()">🔒 LOCK FINAL GUESS</button>
   <div id="guessMessage" class="result-box"></div>
-</div>
+</section>
 
-<div class="card hidden reveal-card" id="revealCard">
-  <div class="reveal-title"><span>🎭</span><div><span class="eyebrow">ROUND REVEAL</span><h2>Who is the Thief?</h2></div></div>
+<section class="card hidden reveal-card" id="revealCard">
+  <div class="section-head"><div><span class="eyebrow">ROUND REVEAL</span><h2>🎬 The Mask Falls</h2></div><span class="reveal-pill">REVEALED</span></div>
   <div id="revealHero"></div>
   <div id="revealSheets"></div>
-</div>
+</section>
 
-<div class="card" id="pointsCard">
-  <h2>🏆 Points Table</h2>
-  <p id="pointsNote">Points are locked until Police locks the current round.</p>
+<section class="card score-card" id="pointsCard">
+  <div class="section-head"><div><span class="eyebrow">LIVE SCOREBOARD</span><h2>🏆 Points Table</h2></div></div>
+  <p id="pointsNote" class="muted">Role points are applied at the start of each round. Police and Thief receive no base role points.</p>
   <div id="pointsTable"></div>
-</div>
+</section>
 
-<div class="card">
-  <h2>📋 Round History</h2>
-  <p>Completed rounds stay here. Each round shows the Police lock, the real Thief, every player's revealed sheet and the updated points.</p>
-  <div id="roundHistory"><p>No completed rounds yet.</p></div>
-</div>
+<section class="card" id="roundHistoryCard">
+  <div class="section-head"><div><span class="eyebrow">MEMORY OF THE KINGDOM</span><h2>📜 Round History</h2></div></div>
+  <div id="roundHistory"><p class="muted">No completed rounds yet.</p></div>
+</section>
 
-<div class="card hidden" id="nextRoundCard">
-  <h2>➡️ Next Round</h2>
-  <p>Only the King can start the next round after Police locks.</p>
-  <button id="nextRoundBtn" onclick="nextRound()">START NEXT ROUND</button>
+<section class="card king-card hidden" id="nextRoundCard">
+  <div class="king-emblem">♛</div>
+  <div>
+    <span class="eyebrow">KING'S COMMAND</span>
+    <h2>Ready for the next round?</h2>
+    <p class="muted">Only the current King can start the next round.</p>
+  </div>
+  <button id="nextRoundBtn" class="game-btn gold-btn" onclick="nextRound()">♛ START NEXT ROUND →</button>
   <div id="nextRoundMessage" class="result-box"></div>
-</div>
+</section>
 
-<div class="card">
-  <h2>🏁 Close Game</h2>
-  <p>Play unlimited rounds. Only the host can close the game.</p>
-  <button id="closeBtn" onclick="closeGame()">CLOSE GAME</button>
+<section class="card king-card hidden" id="closeCard">
+  <div class="king-emblem">🏁</div>
+  <div>
+    <span class="eyebrow">FINAL COMMAND</span>
+    <h2>Close the Kingdom</h2>
+    <p class="muted">Only the King can close the game. After confirmation, the final ranking is revealed to everyone.</p>
+  </div>
+  <button id="closeBtn" class="game-btn close-btn" onclick="closeGame()">🏁 CLOSE GAME & SHOW RESULTS</button>
   <div id="finalResults"></div>
-</div>
+</section>
 
 <div class="back-home-wrap hidden" id="backHomeWrap"><a class="btn back-home" href="/dashboard">← BACK TO HOME</a></div>
 </div>
@@ -65,18 +102,56 @@
 const room="{{room_code}}", currentUser="{{session.get('username','')}}";
 const socket=io();
 let isPolice=false,isKing=false,gameClosed=false,roundCompleted=false,lastReveal=null;
+let deadlineMs=0,timerHandle=null;
 
 socket.emit("join_room_game",{room});
 
-async function getSheet(){
-  return await (await fetch("/api/my-sheet/"+room)).json();
-}
+async function getSheet(){ return await (await fetch("/api/my-sheet/"+room)).json(); }
+
 async function viewSheet(){
   const d=await getSheet(); if(d.error)return;
-  document.getElementById("sheet").innerHTML=`<div class="sheet-role">${escapeHtml(d.character)}</div><p>${escapeHtml(d.tamil)}</p><strong>${d.base_points} BASE POINTS</strong>`;
-  document.getElementById("sheet").classList.remove("hidden");
+  const sheet=document.getElementById("sheet");
+  sheet.innerHTML=
+    `<div class="scroll-ribbon">✦ SECRET ROYAL SHEET ✦</div>
+     <div class="sheet-role">${escapeHtml(d.character)}</div>
+     <p class="sheet-tamil">${escapeHtml(d.tamil)}</p>
+     <div class="sheet-points">ROUND ROLE VALUE <b>${Number(d.role_points||0)}</b><span>${d.character==='Police'||d.character==='Thief' ? 'NO BASE POINTS — POLICE RESULT ONLY' : 'THIS VALUE IS ADDED AT ROUND START'}</span></div>`;
+  sheet.classList.remove("hidden");
+  sheet.classList.remove("opening"); void sheet.offsetWidth; sheet.classList.add("opening");
+  document.getElementById("viewBtn").classList.add("hidden");
+  document.getElementById("hideBtn").classList.remove("hidden");
+  if(isPolice && !roundCompleted && !gameClosed){
+    document.getElementById("timerHint").textContent=`${d.police_timer_seconds||60} seconds started — LOCK before time runs out`;
+  }
 }
-function hideSheet(){document.getElementById("sheet").classList.add("hidden");}
+function hideSheet(){
+  const sheet=document.getElementById("sheet");
+  sheet.classList.remove("opening");
+  sheet.classList.add("closing");
+  setTimeout(()=>{
+    sheet.classList.add("hidden");
+    sheet.classList.remove("closing");
+    document.getElementById("hideBtn").classList.add("hidden");
+    document.getElementById("viewBtn").classList.remove("hidden");
+  },260);
+}
+
+function setTimer(deadline){
+  deadlineMs=(deadline||0)*1000;
+  clearInterval(timerHandle);
+  updateTimer();
+  timerHandle=setInterval(updateTimer,250);
+}
+function updateTimer(){
+  const el=document.getElementById("timerValue"), panel=document.getElementById("timerPanel");
+  if(gameClosed||roundCompleted||!deadlineMs){el.textContent="00:00";panel.classList.remove("urgent");return;}
+  const left=Math.max(0,Math.ceil((deadlineMs-Date.now())/1000));
+  const m=String(Math.floor(left/60)).padStart(2,"0"),s=String(left%60).padStart(2,"0");
+  el.textContent=`${m}:${s}`;
+  panel.classList.toggle("urgent",left<=15);
+  document.getElementById("timerHint").textContent=left<=15?"HURRY — LOCK NOW":"Lock before the Police window ends";
+  if(left===0) clearInterval(timerHandle);
+}
 
 async function detectRole(){
   const d=await getSheet();
@@ -84,26 +159,40 @@ async function detectRole(){
   isKing=!d.error && d.character==="King";
   document.getElementById("policeCard").classList.toggle("hidden",!isPolice || gameClosed || roundCompleted);
   document.getElementById("nextRoundCard").classList.toggle("hidden",!isKing || !roundCompleted || gameClosed);
+  document.getElementById("closeCard").classList.toggle("hidden",!isKing || gameClosed);
   if(isPolice && !roundCompleted) updateSuspects();
 }
 async function updateSuspects(){
   const d=await (await fetch("/api/room/"+room)).json();
   const select=document.getElementById("suspect");
-  select.innerHTML='<option value="">-- Select player --</option>'+
-    d.players.filter(p=>p.username!==currentUser).map(p=>`<option value="${escapeAttr(p.username)}">${escapeHtml(p.username)}${p.system?" (System)":""}</option>`).join("");
+  select.innerHTML='<option value="">Choose a player…</option>'+
+    d.players.filter(p=>p.username!==currentUser)
+    .map(p=>`<option value="${escapeAttr(p.username)}">${escapeHtml(p.username)}${p.system?" • SYSTEM":""}</option>`).join("");
+}
+
+function drawPolice(d){
+  const name=document.getElementById("policeName"), mode=document.getElementById("policeMode");
+  if(!d.police){name.textContent="Not assigned";return;}
+  name.textContent=d.police;
+  const seconds=d.police_timer_seconds||60;
+  mode.textContent=d.police_system
+    ? `System Police is thinking like a normal player and will lock before the ${seconds}-second limit.`
+    : `Human Police is observing the table and has ${seconds} seconds to lock one player.`;
 }
 
 function drawPoints(reveal){
   const box=document.getElementById("pointsTable");
   if(!reveal){
-    box.innerHTML="<div class='locked-points'>🔒 <b>Points locked</b><br>Police must lock the round before points are added and shown.</div>";
-    document.getElementById("pointsNote").textContent="No current-round points are public yet.";
+    box.innerHTML="<div class='locked-points'><span>🔐</span><b> SCOREBOARD LOCKED</b><br><small>Round role points are already applied; the Police/Thief +500 result appears after lock or timeout.</small></div>";
+    document.getElementById("pointsNote").textContent="Current Police/Thief decision points remain private until the decision is complete.";
     return;
   }
-  document.getElementById("pointsNote").innerHTML=`🔓 Round ${reveal.round} locked — <b>+500</b> added to ${escapeHtml(reveal.points_added?.username||"the winner")}.`;
+  document.getElementById("pointsNote").innerHTML=
+    reveal.timed_out ? `⏰ Time expired — <b>+500</b> to ${escapeHtml(reveal.points_added?.username||"the Thief")}. Role points were already applied to the other roles.`
+    : `🔓 Round ${reveal.round} complete — <b>+500</b> to ${escapeHtml(reveal.points_added?.username||"the winner")}. Other role points were already applied.`;
   const rows=[...reveal.players].sort((a,b)=>b.score-a.score);
-  box.innerHTML=`<div class="table-wrap"><table class="points-table"><tr><th>Rank</th><th>Player</th><th>Sheet</th><th>Total Points</th></tr>`+
-    rows.map((p,i)=>`<tr><td>${i+1}</td><td><b>${escapeHtml(p.username)}</b></td><td>${escapeHtml(p.character)}</td><td><strong>${p.score}</strong></td></tr>`).join("")+
+  box.innerHTML=`<div class="table-wrap"><table class="points-table"><tr><th>Rank</th><th>Player</th><th>Role</th><th>Total</th></tr>`+
+    rows.map((p,i)=>`<tr><td>${i+1}</td><td><b>${escapeHtml(p.username)}</b>${p.system?" <small class='system-tag'>SYS</small>":""}</td><td>${escapeHtml(p.character)}</td><td><strong>${p.score}</strong></td></tr>`).join("")+
     "</table></div>";
 }
 
@@ -111,12 +200,16 @@ function drawReveal(reveal){
   lastReveal=reveal;
   if(!reveal){document.getElementById("revealCard").classList.add("hidden");return;}
   document.getElementById("revealCard").classList.remove("hidden");
-  const verdict=reveal.correct
-    ? `<div class="who-thief correct">🎉 ${escapeHtml(reveal.thief)} IS THE THIEF</div><p>Police locked <b>${escapeHtml(reveal.guessed)}</b> and was correct.</p>`
-    : `<div class="who-thief wrong">🕵️ THE THIEF IS ${escapeHtml(reveal.thief)}</div><p>Police locked <b>${escapeHtml(reveal.guessed)}</b> — wrong guess.</p>`;
-  document.getElementById("revealHero").innerHTML=verdict+`<div class="lock-message">🔒 Round locked • ${escapeHtml(reveal.outcome)}</div>`;
-  document.getElementById("revealSheets").innerHTML=`<h3>📄 All Player Sheets</h3><div class="sheet-grid">`+
-    reveal.players.map(p=>`<div class="revealed-sheet"><b>${escapeHtml(p.username)}</b><span>${escapeHtml(p.character)}</span><small>${escapeHtml(CHARACTERS_TAMIL[p.character]||"")}</small><strong>${p.base_points} base • ${p.score} total</strong></div>`).join("")+
+  const verdict=reveal.timed_out
+    ? `<div class="who-thief timeout">⏰ TIME UP — ${escapeHtml(reveal.thief)} GETS +500</div><p>Police <b>${escapeHtml(reveal.police)}</b> did not lock within the configured time.</p>`
+    : reveal.correct
+      ? `<div class="who-thief correct">🎉 ${escapeHtml(reveal.thief)} IS THE THIEF</div><p>Police <b>${escapeHtml(reveal.police)}</b> locked <b>${escapeHtml(reveal.guessed)}</b> and was correct.</p>`
+      : `<div class="who-thief wrong">🕵️ THE THIEF IS ${escapeHtml(reveal.thief)}</div><p>Police <b>${escapeHtml(reveal.police)}</b> locked <b>${escapeHtml(reveal.guessed)}</b> — wrong guess.</p>`;
+  document.getElementById("revealHero").innerHTML=
+    verdict+`<div class="lock-message">👮 Police: <b>${escapeHtml(reveal.police)}</b> · ${escapeHtml(reveal.outcome)}</div>`;
+  document.getElementById("revealSheets").innerHTML=
+    `<h3>📄 All Player Sheets</h3><div class="sheet-grid">`+
+    reveal.players.map(p=>`<div class="revealed-sheet"><b>${escapeHtml(p.username)}</b><span>${escapeHtml(p.character)}</span><small>${escapeHtml(CHARACTERS_TAMIL[p.character]||"")}</small><strong>${p.score} total points</strong></div>`).join("")+
     "</div>";
   drawPoints(reveal);
 }
@@ -128,13 +221,14 @@ const CHARACTERS_TAMIL={
 
 function drawHistory(history){
   const box=document.getElementById("roundHistory");
-  if(!history || !history.length){box.innerHTML="<p>No completed rounds yet.</p>";return;}
+  if(!history || !history.length){box.innerHTML="<p class='muted'>No completed rounds yet.</p>";return;}
   box.innerHTML=history.slice().reverse().map(r=>`
-    <div class="history-card ${r.correct?'history-right':'history-wrong'}">
-      <div class="history-head"><b>Round ${r.round}</b><span>${r.correct?'✅ RIGHT':'❌ WRONG'}</span></div>
-      <p>👮 Police: <b>${escapeHtml(r.police)}</b> · Locked: <b>${escapeHtml(r.guessed)}</b> · Thief: <b>${escapeHtml(r.thief)}</b></p>
+    <div class="history-card ${r.timed_out?'history-timeout':r.correct?'history-right':'history-wrong'}">
+      <div class="history-head"><b>Round ${r.round}</b><span>${r.timed_out?'⏰ TIME OUT':r.correct?'✅ RIGHT':'❌ WRONG'}</span></div>
+      <p>👮 Police: <b>${escapeHtml(r.police)}</b> · Locked: <b>${escapeHtml(r.guessed||'No lock')}</b> · Thief: <b>${escapeHtml(r.thief)}</b></p>
       <p>${escapeHtml(r.outcome)}</p>
       <p class="bonus">+${r.points_added?.points||500} → ${escapeHtml(r.points_added?.username||"")}</p>
+      ${(r.round_role_points||[]).length ? `<p class="muted">Round role points: ${(r.round_role_points||[]).map(x=>`${escapeHtml(x.username)} +${x.points}`).join(' · ')}</p>` : ''}
       <details><summary>📄 Show player sheets</summary><div class="history-sheets">`+
       (r.players||[]).map(p=>`<span><b>${escapeHtml(p.username)}</b> · ${escapeHtml(p.character)} · ${p.score} pts</span>`).join("")+
       `</div></details>
@@ -145,10 +239,18 @@ async function load(){
   const d=await (await fetch("/api/room/"+room)).json();
   if(d.error)return;
   gameClosed=!!d.closed;
+  roundCompleted=!!d.last_reveal;
   document.getElementById("roundNumber").textContent=d.round||1;
-  if(d.last_reveal) drawReveal(d.last_reveal); else if(!gameClosed){drawReveal(null);drawPoints(null);}
+  drawPolice(d);
+  if(d.last_reveal){drawReveal(d.last_reveal); setTimer(0);}
+  else if(!gameClosed){
+    drawReveal(null);drawPoints(null);
+    if(d.police_sheet_viewed && d.police_deadline) setTimer(d.police_deadline);
+    else { clearInterval(timerHandle); document.getElementById("timerValue").textContent="WAIT"; document.getElementById("timerHint").textContent=`Open the Police sheet to start • ${d.police_timer_seconds||60}s`; }
+  }
   drawHistory(d.round_history||[]);
   await detectRole();
+  if(d.closed) document.getElementById("closeCard").classList.add("hidden");
 }
 load();
 setInterval(load,3000);
@@ -156,46 +258,62 @@ setInterval(load,3000);
 function lockGuessButton(){
   document.getElementById("guessBtn").disabled=true;
   document.getElementById("suspect").disabled=true;
-  document.getElementById("guessBtn").textContent="🔒 LOCKED";
+  document.getElementById("guessBtn").textContent="🔒 DECISION LOCKED";
 }
 function guess(){
   if(gameClosed||!isPolice)return;
   const suspect=document.getElementById("suspect").value;
-  if(!suspect){alert("Select a player first.");return;}
+  if(!suspect){alert("Choose a player first.");return;}
   lockGuessButton();
   socket.emit("police_guess",{room,username:suspect});
 }
-function addRoundHistory(r){ load(); }
 
 socket.on("game_started",d=>{
   roundCompleted=false; lastReveal=null;
   document.getElementById("roundNumber").textContent=d.round;
-  document.getElementById("roundStatus").textContent="Round started. Keep your sheet secret.";
+  document.getElementById("roundStatus").textContent="Round started — watch the table.";
+  clearInterval(timerHandle);
+  document.getElementById("timerValue").textContent="WAIT";
+  document.getElementById("timerHint").textContent="Police must open the sheet first";
+  load();
+});
+
+socket.on("police_timer_started",d=>{
+  if(d && d.police_deadline){
+    setTimer(d.police_deadline);
+    document.getElementById("timerHint").textContent=`${d.police_timer_seconds||60} seconds started — LOCK before time runs out`;
+  }
   load();
 });
 
 socket.on("guess_result",d=>{
   roundCompleted=!!d.round_complete;
-  document.getElementById("guessMessage").className="result-box "+(d.correct?"right":"wrong");
-  document.getElementById("guessMessage").innerHTML=(d.correct?"✅ Correct lock! ":"❌ Wrong lock! ")+escapeHtml(d.outcome||"");
-  if(d.round_complete){
-    document.getElementById("roundStatus").textContent="🔓 Locked! The Thief and all sheets are now revealed.";
-    if(isPolice)lockGuessButton();
-    if(isKing)document.getElementById("nextRoundCard").classList.remove("hidden");
-  }
+  document.getElementById("roundStatus").textContent="Decision locked — the reveal is open.";
+  if(isPolice)lockGuessButton();
+  load();
+});
+
+socket.on("police_timeout",d=>{
+  roundCompleted=true;
+  document.getElementById("roundStatus").textContent="⏰ Time is over — the Thief receives the bonus.";
   load();
 });
 
 socket.on("new_round",d=>{
   roundCompleted=false; lastReveal=null;
   document.getElementById("roundNumber").textContent=d.round;
-  document.getElementById("roundStatus").textContent="New round. Sheets are secret again.";
+  document.getElementById("roundStatus").textContent="New round — roles are secret again.";
   document.getElementById("revealCard").classList.add("hidden");
-  document.getElementById("nextRoundCard").classList.add("hidden");
   document.getElementById("sheet").classList.add("hidden");
+  document.getElementById("hideBtn").classList.add("hidden");
+  document.getElementById("viewBtn").classList.remove("hidden");
   document.getElementById("guessBtn").disabled=false;
-  document.getElementById("guessBtn").textContent="🔒 LOCK GUESS";
+  document.getElementById("guessBtn").textContent="🔒 LOCK FINAL GUESS";
   document.getElementById("suspect").disabled=false;
+  document.getElementById("nextRoundCard").classList.add("hidden");
+  clearInterval(timerHandle);
+  document.getElementById("timerValue").textContent="WAIT";
+  document.getElementById("timerHint").textContent="Open the Police sheet to start";
   load();
 });
 
@@ -203,26 +321,43 @@ function nextRound(){
   document.getElementById("nextRoundBtn").disabled=true;
   socket.emit("next_round",{room});
 }
-socket.on("start_error",d=>alert(d.message||"Unable to start round."));
+socket.on("start_error",d=>{
+  document.getElementById("nextRoundBtn").disabled=false;
+  alert(d.message||"Unable to start round.");
+});
+socket.on("guess_error",d=>{
+  document.getElementById("guessBtn").disabled=false;
+  document.getElementById("suspect").disabled=false;
+  alert(d.message||"Unable to lock guess.");
+});
 socket.on("close_error",d=>alert(d.message||"Unable to close game."));
 
 function closeGame(){
   if(gameClosed)return;
-  if(confirm("Close the game and show the final ranking?"))socket.emit("close_game",{room});
+  if(!isKing){alert("Only the King can close the game.");return;}
+  if(confirm("Close the game now and reveal the FINAL RESULT TABLE to everyone?")) {
+    socket.emit("close_game",{room});
+  }
 }
 socket.on("game_closed",d=>{
-  gameClosed=true; roundCompleted=true;
+  gameClosed=true; roundCompleted=true; clearInterval(timerHandle);
   document.getElementById("backHomeWrap").classList.remove("hidden");
+  document.getElementById("closeCard").classList.remove("hidden");
   document.getElementById("closeBtn").disabled=true;
   document.getElementById("policeCard").classList.add("hidden");
   document.getElementById("nextRoundCard").classList.add("hidden");
-  document.getElementById("roundStatus").textContent="Game closed. Final ranking is visible.";
-  document.getElementById("pointsTable").innerHTML=`<div class="table-wrap"><table class="points-table"><tr><th>Rank</th><th>Player</th><th>Points</th><th>Grade</th></tr>`+
-    d.results.map(x=>`<tr><td>${x.rank===1?'🥇':x.rank===2?'🥈':x.rank===3?'🥉':x.rank}</td><td>${escapeHtml(x.username)}</td><td><strong>${x.score}</strong></td><td>${x.grade}</td></tr>`).join("")+"</table></div>";
-  document.getElementById("finalResults").innerHTML=`<h2>🏆 Final Result</h2><p>${escapeHtml(d.message||"Game closed.")}</p>`;
+  document.getElementById("roundStatus").textContent="🏁 Kingdom closed — FINAL RESULTS are revealed.";
+  document.getElementById("timerValue").textContent="CLOSED";
+  document.getElementById("pointsTable").innerHTML=
+    `<div class="table-wrap final-table"><table class="points-table"><tr><th>Rank</th><th>Player</th><th>Points</th><th>Grade</th></tr>`+
+    d.results.map(x=>`<tr><td>${x.rank===1?'🥇':x.rank===2?'🥈':x.rank===3?'🥉':x.rank}</td><td>${escapeHtml(x.username)}</td><td><strong>${x.score}</strong></td><td>${x.grade}</td></tr>`).join("")+
+    "</table></div>";
+  document.getElementById("finalResults").innerHTML=`<div class="final-winner">🏆 <b>FINAL RESULT</b><p>${escapeHtml(d.message||"Game closed.")}</p></div>`;
   drawHistory(d.round_history||[]);
 });
+
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
 function escapeAttr(s){return escapeHtml(s).replace(/`/g,"&#96;");}
 </script>
-</body></html>
+</body>
+</html>
