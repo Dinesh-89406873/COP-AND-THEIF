@@ -1,8 +1,6 @@
-# COP-AND-THEIF
-thirudan , police, raja, rani.
-# Raja Rani Online Game
+# ARASAN Online Game
 
-A Flask + Socket.IO browser game based on the Raja Rani secret-character game.
+A Flask + Socket.IO browser game based on the ARASAN royal secret-character game.
 
 ## Features
 - Username/email login and registration
@@ -55,3 +53,13 @@ This demo stores passwords as plain text for simplicity. For a real deployment, 
 - While KINT is active, each wrong Police lock consumes 1 KINT credit and allows another guess in the same round.
 - A correct Police guess ends the round immediately. If KINT is not used, the first locked wrong guess ends the round and awards +500 to the Thief.
 - KINT is reset after the round and must be activated again in another round if credits remain.
+
+## ARASAN gameplay updates
+- Police timer starts only after the Police opens their private sheet.
+- Police has 60 seconds from sheet-open time to lock a player.
+- If Police does not lock in time, the Thief receives the +500 round bonus; Police receives no bonus.
+- A Police lock is checked immediately: correct => Police +500, wrong => Thief +500.
+- System Police opens its sheet automatically and behaves like a normal player before deciding.
+- A System King waits exactly 15 seconds after a completed round before starting the next round.
+- Private sheets use a closed-scroll/opening-scroll animation.
+- Main game controls use a raised royal/game-button treatment with stronger typography and responsive mobile layout.
