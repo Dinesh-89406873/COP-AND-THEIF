@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create ARASAN Game</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create ARASAN Game</title><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"><link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"></head>
 <body><div class="container create-page">
 <header class="topbar"><div class="brand"><span class="brand-crown">♛</span><div><h1>ARASAN</h1><small>ROYAL ARENA</small></div></div><a class="exit-link" href="/dashboard">BACK</a></header>
 <section class="hero-card create-hero"><div><span class="eyebrow">♛ KINGDOM SETUP</span><h1>Create <strong>ARASAN</strong> Game</h1><p class="muted">Set the Police decision window before the game begins. The timer can be customised from <strong>1–60 seconds</strong>.</p></div><div class="round-orb"><span>MAX</span><b>60s</b></div></section>
