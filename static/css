@@ -42,3 +42,13 @@ a{color:var(--gold2)}
 .create-form{padding:24px}.character-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0 24px}.role-choice{display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.035);cursor:pointer}.role-choice:hover{border-color:var(--gold)}.role-choice input{accent-color:var(--gold);width:18px;height:18px}.role-choice span{display:flex;flex-direction:column;gap:3px}.role-choice b{font-weight:900;letter-spacing:.3px}.role-choice small{color:var(--muted)}.role-points{margin-left:auto;flex:0 0 auto;padding:7px 10px;border:1px solid rgba(255,224,126,.38);border-radius:999px;background:rgba(255,196,67,.09);color:#ffe28b;font-size:12px;font-weight:950;letter-spacing:.7px;white-space:nowrap}.sheet-points b{font-size:28px;color:#5b3510}.sheet-points{flex-wrap:wrap}
 .timer-setup{display:grid;grid-template-columns:1fr auto;align-items:center;gap:20px;padding:18px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,rgba(212,175,55,.10),rgba(255,255,255,.025));margin-bottom:20px}.timer-input-wrap{display:grid;grid-template-columns:auto 110px;gap:7px;align-items:center}.timer-input-wrap>span{font-size:24px}.timer-input-wrap input{font-size:25px;font-weight:900;text-align:center;padding:12px;border-radius:13px;border:1px solid var(--gold);background:#0b0b0d;color:#fff}.timer-input-wrap small{grid-column:2;text-align:center;color:var(--muted)}.create-btn{width:100%;font-weight:900;letter-spacing:.5px}
 @media(max-width:650px){.character-grid{grid-template-columns:1fr}.timer-setup{grid-template-columns:1fr}.timer-input-wrap{justify-self:start}.create-form{padding:18px}}
+
+/* Round-wise points matrix */
+.round-points-wrap{overflow-x:auto}
+.round-points-table{min-width:620px}
+.round-points-table th,.round-points-table td{text-align:center;white-space:nowrap}
+.round-points-table th:first-child,.round-points-table td:first-child{text-align:left}
+.round-points-table th{background:rgba(246,196,83,.08);color:var(--gold2)}
+.round-points-table td strong{font-size:16px}
+.round-points-table .round-total{color:var(--gold2);font-size:17px}
+.round-points-table .score-total-row td{border-top:2px solid rgba(246,196,83,.35);background:rgba(246,196,83,.10)}
