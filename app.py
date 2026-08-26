@@ -3,7 +3,7 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_socketio import SocketIO, join_room, emit
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "raja-rani-secret-key")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 DB = os.path.join(os.path.dirname(__file__), "database.db")
