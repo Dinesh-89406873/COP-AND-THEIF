@@ -63,3 +63,10 @@ This demo stores passwords as plain text for simplicity. For a real deployment, 
 - A System King waits exactly 15 seconds after a completed round before starting the next round.
 - Private sheets use a closed-scroll/opening-scroll animation.
 - Main game controls use a raised royal/game-button treatment with stronger typography and responsive mobile layout.
+
+
+## Render deployment
+Use the repository root that contains `app.py`, `templates/`, and `static/`. Start command:
+`gunicorn --worker-class gthread --threads 100 --bind 0.0.0.0:$PORT app:app`
+
+This build includes a full CSS fallback at `/assets/css/style.css` plus critical inline CSS in every page, so the UI remains styled even if the primary static URL is cached or unavailable.
