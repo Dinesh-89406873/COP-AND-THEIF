@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ARASAN • Arena</title>
-<link rel="stylesheet" href="/static/css/style.css">
-</head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"></head>
 <body class="game-page">
 <div class="container arena">
 <header class="topbar">
@@ -180,20 +180,61 @@ function drawPolice(d){
     : `Human Police is observing the table and has ${seconds} seconds to lock one player.`;
 }
 
-function drawPoints(reveal){
+function drawPoints(reveal, history=[]){
   const box=document.getElementById("pointsTable");
-  if(!reveal){
-    box.innerHTML="<div class='locked-points'><span>🔐</span><b> SCOREBOARD LOCKED</b><br><small>Round role points are already applied; the Police/Thief +500 result appears after lock or timeout.</small></div>";
-    document.getElementById("pointsNote").textContent="Current Police/Thief decision points remain private until the decision is complete.";
+  const rounds=Array.isArray(history)?history:[];
+  if(!rounds.length){
+    box.innerHTML="<div class='locked-points'><span>🔐</span><b> SCOREBOARD</b><br><small>Round-wise points will appear here after each round is completed.</small></div>";
+    document.getElementById("pointsNote").textContent="Each row shows the points earned in that round by each player.";
     return;
   }
-  document.getElementById("pointsNote").innerHTML=
-    reveal.timed_out ? `⏰ Time expired — <b>+500</b> to ${escapeHtml(reveal.points_added?.username||"the Thief")}. Role points were already applied to the other roles.`
-    : `🔓 Round ${reveal.round} complete — <b>+500</b> to ${escapeHtml(reveal.points_added?.username||"the winner")}. Other role points were already applied.`;
-  const rows=[...reveal.players].sort((a,b)=>b.score-a.score);
-  box.innerHTML=`<div class="table-wrap"><table class="points-table"><tr><th>Rank</th><th>Player</th><th>Role</th><th>Total</th></tr>`+
-    rows.map((p,i)=>`<tr><td>${i+1}</td><td><b>${escapeHtml(p.username)}</b>${p.system?" <small class='system-tag'>SYS</small>":""}</td><td>${escapeHtml(p.character)}</td><td><strong>${p.score}</strong></td></tr>`).join("")+
-    "</table></div>";
+
+  document.getElementById("pointsNote").textContent =
+    reveal ? `🔓 Round ${reveal.round} complete — +500 result included in the round points.`
+            : "Each row shows points earned in that round. Total is the sum of all completed rounds.";
+
+  // Build a matrix: Round | Player 1 | Player 2 | ... | Total
+  // Stored scores are cumulative, so subtract the previous round score
+  // to get exactly the points earned in that round.
+  const playerNames=[];
+  rounds.forEach(r => (r.players||[]).forEach(p => {
+    if(!playerNames.includes(p.username)) playerNames.push(p.username);
+  }));
+
+  const previous={};
+  const totals={};
+  playerNames.forEach(n => { previous[n]=0; totals[n]=0; });
+
+  const roundRows=rounds.map(r=>{
+    const current={};
+    (r.players||[]).forEach(p=>current[p.username]=Number(p.score||0));
+
+    const earned={};
+    playerNames.forEach(name=>{
+      const score=current[name]??previous[name]??0;
+      earned[name]=score-(previous[name]??0);
+      totals[name]=(totals[name]??0)+earned[name];
+      previous[name]=score;
+    });
+    return {round:r.round, earned};
+  });
+
+  const head=`<tr><th>Round</th>`+
+    playerNames.map(n=>`<th>${escapeHtml(n)}</th>`).join("")+
+    `<th>Total</th></tr>`;
+
+  const rows=roundRows.map(r=>{
+    const sum=playerNames.reduce((a,n)=>a+(r.earned[n]||0),0);
+    return `<tr><td><b>Round ${r.round}</b></td>`+
+      playerNames.map(n=>`<td><strong>${r.earned[n]||0}</strong></td>`).join("")+
+      `<td class="round-total"><strong>${sum}</strong></td></tr>`;
+  }).join("");
+
+  const totalRow=`<tr class="score-total-row"><td><b>TOTAL</b></td>`+
+    playerNames.map(n=>`<td><strong>${totals[n]||0}</strong></td>`).join("")+
+    `<td class="round-total"><strong>${playerNames.reduce((a,n)=>a+(totals[n]||0),0)}</strong></td></tr>`;
+
+  box.innerHTML=`<div class="table-wrap round-points-wrap"><table class="points-table round-points-table">${head}${rows}${totalRow}</table></div>`;
 }
 
 function drawReveal(reveal){
@@ -211,7 +252,7 @@ function drawReveal(reveal){
     `<h3>📄 All Player Sheets</h3><div class="sheet-grid">`+
     reveal.players.map(p=>`<div class="revealed-sheet"><b>${escapeHtml(p.username)}</b><span>${escapeHtml(p.character)}</span><small>${escapeHtml(CHARACTERS_TAMIL[p.character]||"")}</small><strong>${p.score} total points</strong></div>`).join("")+
     "</div>";
-  drawPoints(reveal);
+  drawPoints(reveal, window.__roundHistory||[]);
 }
 
 const CHARACTERS_TAMIL={
@@ -238,13 +279,14 @@ function drawHistory(history){
 async function load(){
   const d=await (await fetch("/api/room/"+room)).json();
   if(d.error)return;
+  window.__roundHistory=d.round_history||[];
   gameClosed=!!d.closed;
   roundCompleted=!!d.last_reveal;
   document.getElementById("roundNumber").textContent=d.round||1;
   drawPolice(d);
   if(d.last_reveal){drawReveal(d.last_reveal); setTimer(0);}
   else if(!gameClosed){
-    drawReveal(null);drawPoints(null);
+    drawReveal(null);drawPoints(null, d.round_history||[]);
     if(d.police_sheet_viewed && d.police_deadline) setTimer(d.police_deadline);
     else { clearInterval(timerHandle); document.getElementById("timerValue").textContent="WAIT"; document.getElementById("timerHint").textContent=`Open the Police sheet to start • ${d.police_timer_seconds||60}s`; }
   }
