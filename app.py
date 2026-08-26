@@ -442,6 +442,24 @@ def invite_friend(data):
     r["players"][username]=new_player(username,False)
     emit("room_update",room_state(room),room=room)
 
+@app.route("/api/add-system/<room_code>", methods=["POST"])
+@login_required
+def add_system_http(room_code):
+    r=rooms.get(room_code)
+    if not r:
+        return jsonify({"error":"Room not found."}),404
+    if session.get("username") != r.get("host"):
+        return jsonify({"error":"Only the room host can add system players."}),403
+    if r.get("started"):
+        return jsonify({"error":"Game already started."}),400
+    while len(r["players"]) < 4:
+        name=f"System{len([p for p in r['players'].values() if p['system']])+1}"
+        while name in r["players"]:
+            name += "X"
+        r["players"][name]=new_player(name,True)
+    socketio.emit("room_update", room_state(room_code), room=room_code)
+    return jsonify(room_state(room_code))
+
 @socketio.on("add_system")
 def add_system(data):
     room=data["room"]; r=rooms.get(room)
@@ -486,22 +504,34 @@ def award_round_role_points(r):
     r["role_points_awarded_round"] = round_no
     return awarded
 
-@socketio.on("start_game")
-def start_game(data):
-    room=data["room"]; r=rooms.get(room)
-    if not r or session.get("username")!=r["host"] or r["started"]: return
-    while len(r["players"])<4:
+def perform_start_game(room):
+    """Start a room using the same authoritative logic for Socket.IO and HTTP fallback."""
+    r=rooms.get(room)
+    if not r:
+        return False, "Room not found."
+    if session.get("username") != r["host"]:
+        return False, "Only the room host can start the game."
+    if r.get("started"):
+        return False, "Game has already started."
+
+    # Always top up the room to exactly 4 players with system/bot players.
+    while len(r["players"]) < 4:
         n=f"System{len([p for p in r['players'].values() if p['system']])+1}"
-        while n in r["players"]: n+="X"
+        while n in r["players"]:
+            n += "X"
         r["players"][n]=new_player(n,True)
-    if len(r["players"])>10:
-        emit("start_error",{"message":"Maximum 10 players allowed."},to=request.sid); return
-    if len(r["characters"])<len(r["players"]):
+
+    if len(r["players"]) > 10:
+        return False, "Maximum 10 players allowed."
+
+    if len(r["characters"]) < len(r["players"]):
         optional=["Prime Minister","Chief Judge","Commander","Soldier","Courtier","Citizen"]
         for c in optional:
-            if c not in r["characters"]: r["characters"].append(c)
-            if len(r["characters"])>=len(r["players"]): break
-    r["characters"]=r["characters"][:len(r["players"])]
+            if c not in r["characters"]:
+                r["characters"].append(c)
+            if len(r["characters"]) >= len(r["players"]):
+                break
+    r["characters"] = r["characters"][:len(r["players"])]
     assign_round(r,True)
     r["started"]=True; r["closed"]=False; r["round_number"]=1
     r["round_history"]=[]; r["last_reveal"]=None; r["kint_active"]={}; r["system_king_pending"]=False
@@ -512,10 +542,9 @@ def start_game(data):
     r["police_deadline"]=None
     r["police_sheet_viewed"]=False
     r["police_timer_round"]=0
-    emit("game_started",{"round":1,"police_deadline":None,"role_points_added":round_role_points},room=room)
+
     police=next((p for p in r["players"].values() if p["character"]=="Police"),None)
     if police and police.get("system"):
-        # System Police behaves like a normal player: it opens its sheet first, then the 60s clock starts.
         police["viewed"] = True
         r["police_sheet_viewed"] = True
         r["police_deadline"] = time.time()+r.get("police_timer_seconds",60)
@@ -527,6 +556,27 @@ def start_game(data):
             limit=max(1,r.get("police_timer_seconds",60))
             delay=random.uniform(1,max(1,limit-1)) if limit>1 else 0.2
             socketio.start_background_task(_system_police_act,room,1,random.choice(candidates),delay)
+
+    return True, {"round":1,"police_deadline":r["police_deadline"],"role_points_added":round_role_points}
+
+@app.route("/api/start-game/<room_code>", methods=["POST"])
+@login_required
+def start_game_http(room_code):
+    ok, result = perform_start_game(room_code)
+    if not ok:
+        return jsonify({"error":result}), 400
+    socketio.emit("room_update", room_state(room_code), room=room_code)
+    socketio.emit("game_started", result, room=room_code)
+    return jsonify({"ok":True, **result, "redirect":url_for("game", room_code=room_code)})
+
+@socketio.on("start_game")
+def start_game(data):
+    room=data.get("room")
+    ok, result = perform_start_game(room)
+    if not ok:
+        emit("start_error", {"message":result}, to=request.sid)
+        return
+    emit("game_started", result, room=room)
 
 def build_reveal(r, record):
     # Only called after the Police locks. This is the public reveal for the round.
