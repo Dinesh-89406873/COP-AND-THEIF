@@ -1,4 +1,4 @@
-import os, random, string, sqlite3, time
+import os, random, string, sqlite3, time, json
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory, make_response
 from flask_socketio import SocketIO, join_room, emit
@@ -27,6 +27,7 @@ def css_short_fallback():
 def favicon_ico():
     return send_from_directory(STATIC_DIR, "favicon.svg", mimetype="image/svg+xml")
 DB = os.path.join(BASE_DIR, "database.db")
+rooms = {}
 
 CHARACTERS = {
     "King": {"tamil": "இராசா / அரசன்", "points": 1000},
@@ -70,12 +71,48 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(sender_id, receiver_id)
     )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS game_rooms(
+        room_code TEXT PRIMARY KEY,
+        state_json TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
     con.commit()
     con.close()
 
 # Initialize the SQLite database when Gunicorn imports this module.
 # (The __main__ block does not run under Gunicorn.)
 init_db()
+
+def save_room(room_code):
+    """Persist a room so refreshes/redeploy-safe database-backed state is available.
+    Socket IDs are connection-specific and are deliberately not persisted.
+    """
+    r = rooms.get(room_code)
+    if not r:
+        return
+    snapshot = json.loads(json.dumps(r, default=str))
+    for player in snapshot.get("players", {}).values():
+        player["sid"] = None
+    con = db()
+    con.execute("INSERT INTO game_rooms(room_code,state_json,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) "
+                "ON CONFLICT(room_code) DO UPDATE SET state_json=excluded.state_json, updated_at=CURRENT_TIMESTAMP",
+                (room_code, json.dumps(snapshot, separators=(",", ":"))))
+    con.commit(); con.close()
+
+def load_saved_rooms():
+    con = db()
+    rows = con.execute("SELECT room_code,state_json FROM game_rooms").fetchall()
+    con.close()
+    for row in rows:
+        try:
+            state = json.loads(row["state_json"])
+            for player in state.get("players", {}).values():
+                player["sid"] = None
+            rooms[row["room_code"]] = state
+        except Exception:
+            continue
+
+load_saved_rooms()
 
 def login_required(f):
     @wraps(f)
@@ -85,7 +122,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-rooms = {}
 
 def code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -284,6 +320,13 @@ def create():
             "round_number":0, "round_history":[], "last_reveal":None, "round_started_at":None, "police_deadline":None, "police_sheet_viewed":False, "police_timer_round":0
         }
         rooms[room]["players"][session["username"]]=new_player(session["username"],False)
+        # Keep the lobby immediately full with system/bot players as requested.
+        while len(rooms[room]["players"]) < 4:
+            idx = len([p for p in rooms[room]["players"].values() if p.get("system")]) + 1
+            name = f"System Player {idx}"
+            while name in rooms[room]["players"]: name += " X"
+            rooms[room]["players"][name] = new_player(name, True)
+        save_room(room)
         return redirect(url_for("room",room_code=room))
     return render_template("create_game.html", error=None, chars=CHARACTERS)
 
@@ -315,13 +358,15 @@ def join():
         elif session["username"] in rooms[room]["players"]: return redirect(url_for("room",room_code=room))
         else:
             rooms[room]["players"][session["username"]]=new_player(session["username"],False)
+            save_room(room)
             return redirect(url_for("room",room_code=room))
     return render_template("join_game.html", error=error)
 
 @app.route("/room/<room_code>")
 @login_required
 def room(room_code):
-    if room_code not in rooms: return "Room not found",404
+    if room_code not in rooms:
+        return render_template("room_not_found.html", room_code=room_code), 404
     return render_template("room.html", room_code=room_code, host=rooms[room_code]["host"])
 
 @app.route("/game/<room_code>")
@@ -390,6 +435,7 @@ def my_sheet(room_code):
         police=p
         if police.get("system"):
             pass
+        save_room(room_code)
     c=CHARACTERS[p["character"]]
     return jsonify({"character":p["character"],"tamil":c["tamil"],"role_points":c["points"],"base_points":c["points"],"score":p.get("score",0),"timer_started":bool(r.get("police_sheet_viewed")),"police_timer_seconds":r.get("police_timer_seconds",60)})
 
@@ -410,6 +456,79 @@ def grade_for_score(score):
     if score>=500:return "B"
     if score>=300:return "C"
     return "D"
+
+@app.post("/api/room/<room_code>/add-system")
+@login_required
+def add_system_http(room_code):
+    r = rooms.get(room_code)
+    if not r:
+        return jsonify({"error":"Room not found. Please create or join a new room."}), 404
+    if r.get("started"):
+        return jsonify({"error":"Game already started."}), 400
+    if session.get("username") != r.get("host"):
+        return jsonify({"error":"Only the host can add system players."}), 403
+    while len(r["players"]) < 4:
+        idx = len([p for p in r["players"].values() if p.get("system")]) + 1
+        name = f"System Player {idx}"
+        while name in r["players"]: name += " X"
+        r["players"][name] = new_player(name, True)
+    save_room(room_code)
+    return jsonify(room_state(room_code))
+
+def start_game_for_room(room, actor):
+    r = rooms.get(room)
+    if not r:
+        return False, "Room not found. Please create or join a new room."
+    if actor != r.get("host"):
+        return False, "Only the room host can start the game."
+    if r.get("started"):
+        return True, None
+    while len(r["players"]) < 4:
+        idx = len([p for p in r["players"].values() if p.get("system")]) + 1
+        name = f"System Player {idx}"
+        while name in r["players"]: name += " X"
+        r["players"][name] = new_player(name, True)
+    if len(r["players"]) > 10:
+        return False, "Maximum 10 players allowed."
+    if len(r["characters"]) < len(r["players"]):
+        optional=["Prime Minister","Chief Judge","Commander","Soldier","Courtier","Citizen"]
+        for c in optional:
+            if c not in r["characters"]: r["characters"].append(c)
+            if len(r["characters"]) >= len(r["players"]): break
+    r["characters"] = r["characters"][:len(r["players"])]
+    assign_round(r, True)
+    r["started"] = True; r["closed"] = False; r["round_number"] = 1
+    r["round_history"] = []; r["last_reveal"] = None; r["kint_active"] = {}; r["system_king_pending"] = False
+    r["role_points_awarded_round"] = 0; r["round_started_at"] = time.time()
+    round_role_points = award_round_role_points(r)
+    r["current_round_role_points"] = round_role_points
+    r["police_deadline"] = None; r["police_sheet_viewed"] = False; r["police_timer_round"] = 0
+    save_room(room)
+    return True, round_role_points
+
+@app.post("/api/room/<room_code>/start")
+@login_required
+def start_game_http(room_code):
+    ok, info = start_game_for_room(room_code, session.get("username"))
+    if not ok:
+        return jsonify({"error":info}), 400 if "host" in info.lower() or "maximum" in info.lower() else 404
+    r = rooms[room_code]
+    police = next((p for p in r["players"].values() if p.get("character") == "Police"), None)
+    if police and police.get("system"):
+        police["viewed"] = True; r["police_sheet_viewed"] = True
+        r["police_deadline"] = time.time() + r.get("police_timer_seconds", 60); r["police_timer_round"] = 1
+        socketio.start_background_task(_round_timer, room_code, 1)
+        candidates=[p["username"] for p in r["players"].values() if p["username"] != police["username"]]
+        if candidates:
+            limit=max(1,r.get("police_timer_seconds",60)); delay=random.uniform(1,max(1,limit-1)) if limit>1 else 0.2
+            socketio.start_background_task(_system_police_act, room_code, 1, random.choice(candidates), delay)
+        save_room(room_code)
+    socketio.emit("game_started", {"round":1,"police_deadline":r.get("police_deadline"),"role_points_added":r.get("current_round_role_points",[])}, room=room_code)
+    return jsonify({"ok":True,"redirect":url_for("game", room_code=room_code)})
+
+@app.errorhandler(404)
+def not_found(_error):
+    return render_template("not_found.html"), 404
 
 @socketio.on("connect")
 def connect(): pass
@@ -440,34 +559,19 @@ def invite_friend(data):
     if len(r["players"])>=10:
         emit("room_notice",{"message":"Room is full."},to=request.sid); return
     r["players"][username]=new_player(username,False)
+    save_room(room)
     emit("room_update",room_state(room),room=room)
-
-@app.route("/api/add-system/<room_code>", methods=["POST"])
-@login_required
-def add_system_http(room_code):
-    r=rooms.get(room_code)
-    if not r:
-        return jsonify({"error":"Room not found."}),404
-    if session.get("username") != r.get("host"):
-        return jsonify({"error":"Only the room host can add system players."}),403
-    if r.get("started"):
-        return jsonify({"error":"Game already started."}),400
-    while len(r["players"]) < 4:
-        name=f"System{len([p for p in r['players'].values() if p['system']])+1}"
-        while name in r["players"]:
-            name += "X"
-        r["players"][name]=new_player(name,True)
-    socketio.emit("room_update", room_state(room_code), room=room_code)
-    return jsonify(room_state(room_code))
 
 @socketio.on("add_system")
 def add_system(data):
-    room=data["room"]; r=rooms.get(room)
-    if not r or r["started"]: return
+    room=data.get("room"); r=rooms.get(room)
+    if not r or r.get("started") or session.get("username") != r.get("host"): return
     while len(r["players"])<4:
-        name=f"System{len([p for p in r['players'].values() if p['system']])+1}"
-        while name in r["players"]: name+="X"
+        idx=len([p for p in r["players"].values() if p.get("system")])+1
+        name=f"System Player {idx}"
+        while name in r["players"]: name += " X"
         r["players"][name]=new_player(name,True)
+    save_room(room)
     emit("room_update",room_state(room),room=room)
 
 def assign_round(r, first=False):
@@ -504,79 +608,25 @@ def award_round_role_points(r):
     r["role_points_awarded_round"] = round_no
     return awarded
 
-def perform_start_game(room):
-    """Start a room using the same authoritative logic for Socket.IO and HTTP fallback."""
-    r=rooms.get(room)
-    if not r:
-        return False, "Room not found."
-    if session.get("username") != r["host"]:
-        return False, "Only the room host can start the game."
-    if r.get("started"):
-        return False, "Game has already started."
-
-    # Always top up the room to exactly 4 players with system/bot players.
-    while len(r["players"]) < 4:
-        n=f"System{len([p for p in r['players'].values() if p['system']])+1}"
-        while n in r["players"]:
-            n += "X"
-        r["players"][n]=new_player(n,True)
-
-    if len(r["players"]) > 10:
-        return False, "Maximum 10 players allowed."
-
-    if len(r["characters"]) < len(r["players"]):
-        optional=["Prime Minister","Chief Judge","Commander","Soldier","Courtier","Citizen"]
-        for c in optional:
-            if c not in r["characters"]:
-                r["characters"].append(c)
-            if len(r["characters"]) >= len(r["players"]):
-                break
-    r["characters"] = r["characters"][:len(r["players"])]
-    assign_round(r,True)
-    r["started"]=True; r["closed"]=False; r["round_number"]=1
-    r["round_history"]=[]; r["last_reveal"]=None; r["kint_active"]={}; r["system_king_pending"]=False
-    r["role_points_awarded_round"] = 0
-    r["round_started_at"]=time.time()
-    round_role_points = award_round_role_points(r)
-    r["current_round_role_points"] = round_role_points
-    r["police_deadline"]=None
-    r["police_sheet_viewed"]=False
-    r["police_timer_round"]=0
-
-    police=next((p for p in r["players"].values() if p["character"]=="Police"),None)
-    if police and police.get("system"):
-        police["viewed"] = True
-        r["police_sheet_viewed"] = True
-        r["police_deadline"] = time.time()+r.get("police_timer_seconds",60)
-        r["police_timer_round"] = 1
+@socketio.on("start_game")
+def start_game(data):
+    room=data.get("room"); actor=session.get("username")
+    ok, info = start_game_for_room(room, actor)
+    if not ok:
+        emit("start_error", {"message":info}, to=request.sid); return
+    r=rooms[room]
+    police=next((p for p in r["players"].values() if p.get("character")=="Police"),None)
+    if police and police.get("system") and not r.get("police_sheet_viewed"):
+        police["viewed"]=True; r["police_sheet_viewed"]=True
+        r["police_deadline"]=time.time()+r.get("police_timer_seconds",60); r["police_timer_round"]=1
         socketio.start_background_task(_round_timer,room,1)
         socketio.emit("police_timer_started",{"round":1,"police_deadline":r["police_deadline"]},room=room)
         candidates=[p["username"] for p in r["players"].values() if p["username"]!=police["username"]]
         if candidates:
-            limit=max(1,r.get("police_timer_seconds",60))
-            delay=random.uniform(1,max(1,limit-1)) if limit>1 else 0.2
+            limit=max(1,r.get("police_timer_seconds",60)); delay=random.uniform(1,max(1,limit-1)) if limit>1 else 0.2
             socketio.start_background_task(_system_police_act,room,1,random.choice(candidates),delay)
-
-    return True, {"round":1,"police_deadline":r["police_deadline"],"role_points_added":round_role_points}
-
-@app.route("/api/start-game/<room_code>", methods=["POST"])
-@login_required
-def start_game_http(room_code):
-    ok, result = perform_start_game(room_code)
-    if not ok:
-        return jsonify({"error":result}), 400
-    socketio.emit("room_update", room_state(room_code), room=room_code)
-    socketio.emit("game_started", result, room=room_code)
-    return jsonify({"ok":True, **result, "redirect":url_for("game", room_code=room_code)})
-
-@socketio.on("start_game")
-def start_game(data):
-    room=data.get("room")
-    ok, result = perform_start_game(room)
-    if not ok:
-        emit("start_error", {"message":result}, to=request.sid)
-        return
-    emit("game_started", result, room=room)
+        save_room(room)
+    socketio.emit("game_started",{"round":1,"police_deadline":r.get("police_deadline"),"role_points_added":r.get("current_round_role_points",[])},room=room)
 
 def build_reveal(r, record):
     # Only called after the Police locks. This is the public reveal for the round.
@@ -610,6 +660,7 @@ def finish_guess(r, police, thief, guess):
     r["police_deadline"]=None
     r["police_sheet_viewed"]=False
     r["police_timer_round"]=0
+    save_room(r.get("_room_code")) if r.get("_room_code") else None
     _maybe_schedule_system_king(r.get("_room_code")) if r.get("_room_code") else None
     return record
 
@@ -637,6 +688,7 @@ def _round_timer(room, round_number):
     r["police_deadline"]=None
     r["police_sheet_viewed"]=False
     r["police_timer_round"]=0
+    save_room(room)
     emit("police_timeout",record,room=room)
     _maybe_schedule_system_king(room)
 
@@ -700,6 +752,7 @@ def _advance_round(room):
     r["system_king_pending"]=False
     round_role_points = award_round_role_points(r)
     r["current_round_role_points"] = round_role_points
+    save_room(room)
     emit("new_round",{"round":r["round_number"],"police_deadline":None,"role_points_added":round_role_points},room=room)
 
     police=next((p for p in r["players"].values() if p["character"]=="Police"),None)
@@ -761,6 +814,7 @@ def close_game(data):
     for x in results:
         x["kint_credits"]=get_kint_credits(x["username"]) if not r["players"][x["username"]]["system"] else 0
     r["final_results"]=results
+    save_room(room)
     emit("game_closed",{"results":results,"round_history":r.get("round_history",[]),
                          "message":f"🥇 {credit_awarded} earned 1 KINT credit for the next game." if credit_awarded else "Game closed."},
          room=room)
