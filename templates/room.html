@@ -1,4 +1,4 @@
-<!doctype html><html><head><title>Game Room</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<!doctype html><html><head><title>Game Room</title><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"><link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"></head>
 <body><div class="container"><header><h1>🎲 Game Room</h1><a href="/dashboard">Home</a></header>
 <div class="card">
 <h2>Room Code: <span class="code">{{room_code}}</span></h2>
