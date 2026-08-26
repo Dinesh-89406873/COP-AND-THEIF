@@ -1,38 +1,110 @@
-<!doctype html><html><head><title>Game Room</title><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260826-2"><link rel="stylesheet" href="/assets/css/style.css?v=20260826-2"><link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"><style id="arasan-critical">
-*{box-sizing:border-box}html{min-height:100%;background:#080914}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:radial-gradient(circle at 15% 5%,#2b1a56 0,transparent 30%),radial-gradient(circle at 90% 15%,#18375b 0,transparent 28%),linear-gradient(145deg,#070812,#11152c 55%,#090a13);color:#f8fafc}body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:32px 32px}.container{max-width:1100px;margin:auto;padding:24px}.card,.hero-card{background:linear-gradient(145deg,rgba(24,28,56,.94),rgba(11,14,31,.94));border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:24px;margin:18px 0;box-shadow:0 20px 60px rgba(0,0,0,.22)}h1,h2,h3,p{margin-top:0}a{color:#ffdf7d}button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 19px;margin:8px 4px;border:1px solid transparent;border-radius:13px;background:linear-gradient(135deg,#ffdf7d,#f6c453);color:#17120a;font-weight:900;cursor:pointer;text-decoration:none}input,select{width:100%;padding:14px 15px;margin:8px 0;border-radius:13px;border:1px solid rgba(255,255,255,.12);background:#fff;color:#111;font-size:15px}.auth{max-width:460px;margin:9vh auto;padding:34px}.auth h1{font-size:36px;letter-spacing:2px;color:#fff}.auth form{display:grid;gap:4px}.auth form button{width:100%;margin:8px 0}.error{padding:12px 14px;margin:12px 0;border-radius:12px;background:rgba(255,102,120,.12);border:1px solid #ff6678;color:#ffd4d9}.topbar{display:flex;align-items:center;justify-content:space-between;padding:4px 0 14px}.brand{display:flex;align-items:center;gap:12px}.brand-crown{font-size:38px}.brand h1{font-size:20px;letter-spacing:4px;margin:0}.exit-link{padding:9px 13px;border:1px solid rgba(255,255,255,.12);border-radius:12px;text-decoration:none;color:#fff}.muted{color:#a9b0c7}.hidden{display:none!important}@media(max-width:760px){.container{padding:14px}.card,.hero-card{border-radius:19px;padding:18px;margin:12px 0}.auth{margin:4vh 14px}.auth h1{font-size:30px}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Room • ARASAN</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260826-3">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260826-3">
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+<style>
+*{box-sizing:border-box}html{min-height:100%;background:#080914}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:radial-gradient(circle at 15% 5%,#2b1a56 0,transparent 30%),radial-gradient(circle at 90% 15%,#18375b 0,transparent 28%),linear-gradient(145deg,#070812,#11152c 55%,#090a13);color:#f8fafc}body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:32px 32px}.container{max-width:1100px;margin:auto;padding:24px}.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 0 12px}.brand{display:flex;align-items:center;gap:12px}.brand-dice{font-size:38px;filter:drop-shadow(0 5px 12px rgba(0,0,0,.3))}.brand h1{font-size:34px;margin:0;font-weight:950;letter-spacing:-.5px}.home-link{color:#ffdf7d;font-size:16px;text-decoration:underline}.room-card{margin-top:16px;padding:28px 24px 30px;background:linear-gradient(145deg,rgba(24,28,56,.94),rgba(11,14,31,.96));border:1px solid rgba(255,255,255,.14);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.28)}.room-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.room-code-label{font-size:25px;font-weight:950;margin:0}.room-code{color:#ffdf4f;letter-spacing:1px;font-size:30px}.players-count{padding:10px 17px;border:1px solid rgba(34,197,94,.55);border-radius:999px;color:#4ade80;background:rgba(20,83,45,.18);font-weight:900;white-space:nowrap}.players-count i{display:inline-block;width:11px;height:11px;border-radius:50%;background:#4ade80;margin-right:9px;box-shadow:0 0 12px rgba(74,222,128,.65)}.subtext{color:#dfe5f5;margin:12px 0 22px}.controls{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.room-btn{min-height:48px;padding:13px 21px;border-radius:14px;font-weight:950;letter-spacing:.5px;cursor:pointer}.system-btn{background:linear-gradient(135deg,#1a0f39,#2c155c);color:#d6a9ff;border:2px solid #a855f7;box-shadow:0 7px 20px rgba(168,85,247,.12)}.start-btn{background:linear-gradient(135deg,#ffdf63,#f5c448);color:#17120a;border:2px solid rgba(255,255,255,.35);box-shadow:0 8px 0 rgba(92,58,5,.22),0 14px 28px rgba(246,196,83,.16);min-width:170px}.room-btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.25)}.notice{margin-top:16px;padding:12px 14px;border-radius:12px;display:none}.notice.show{display:block}.notice.error{background:rgba(127,29,29,.32);border:1px solid #f87171;color:#fecaca}.notice.info{background:rgba(30,64,175,.22);border:1px solid #5274c9;color:#cfe0ff}.players-title{margin:30px 0 12px;font-size:20px;color:#ffdc4f;font-weight:950;display:flex;align-items:center;gap:10px}.players-title:after{content:"";height:2px;flex:1;background:linear-gradient(90deg,rgba(255,220,79,.7),rgba(255,220,79,0))}.player-list{display:grid;gap:10px}.player-row{display:flex;align-items:center;gap:15px;padding:12px 15px;border-radius:15px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08)}.avatar{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;font-weight:950;font-size:16px;color:white;flex:0 0 50px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:2px solid rgba(255,255,255,.14)}.avatar.bot{background:linear-gradient(135deg,#0ea5e9,#2563eb)}.player-main{min-width:0;flex:1}.player-name{font-size:18px;font-weight:900}.you-tag,.system-tag{display:inline-block;margin-left:7px;padding:4px 8px;border-radius:7px;font-size:11px;font-weight:900;vertical-align:middle}.you-tag{background:#4c1d95;color:#e9d5ff}.system-tag{background:rgba(37,99,235,.15);color:#9fc5ff;border:1px solid #315a9c}.ready{display:flex;align-items:center;gap:8px;color:#4ade80;font-weight:850}.ready-dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#4ade80;color:#062a15;font-size:15px;font-weight:950}.player-number{color:#c9d1e8;font-size:18px;min-width:34px;text-align:right}.empty-state{padding:22px;text-align:center;color:#9fa8c0;border:1px dashed rgba(255,255,255,.14);border-radius:14px}.invite-wrap{margin-top:18px}.invite-wrap h3{margin:0 0 10px}.friend-chip{border:1px solid rgba(168,85,247,.5);background:rgba(168,85,247,.08);color:#e0c0ff;border-radius:999px;padding:9px 13px;margin:4px;cursor:pointer}.footer-bar{margin-top:24px;padding:15px 18px;border-radius:16px;border:1px solid rgba(76,96,168,.35);background:rgba(9,13,37,.72);display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;color:#bcd0f4}.footer-item{display:flex;gap:8px;align-items:center}.footer-item strong{color:#f5f7ff}@media(max-width:760px){.container{padding:14px}.room-card{padding:20px 16px}.room-head{flex-direction:column}.players-count{align-self:flex-start}.brand h1{font-size:28px}.brand-dice{font-size:32px}.controls{display:grid;grid-template-columns:1fr}.room-btn{width:100%}.footer-bar{display:grid}.player-row{padding:11px}.ready{font-size:13px}.player-number{display:none}}
 </style>
 </head>
-<body><div class="container"><header><h1>🎲 Game Room</h1><a href="/dashboard">Home</a></header>
-<div class="card">
-<h2>Room Code: <span class="code">{{room_code}}</span></h2>
-<p>Share this code with friends, or invite accepted friends below.</p>
-<div id="players"></div>
-<div id="friendInvites"></div>
-<button onclick="addSystem()">Add System Players</button>
-<button onclick="startGame()">START GAME</button>
-<div id="notice" class="result-box"></div>
-</div></div>
+<body>
+<div class="container">
+<header class="topbar">
+  <div class="brand"><span class="brand-dice">🎲</span><h1>Game Room</h1></div>
+  <a class="home-link" href="/dashboard">Home</a>
+</header>
+
+<section class="room-card">
+  <div class="room-head">
+    <h2 class="room-code-label">Room Code: <span class="room-code">{{room_code}}</span></h2>
+    <div class="players-count"><i></i>Players: <span id="playerCount">1</span> / 4</div>
+  </div>
+  <p class="subtext">Share this code with friends, or invite accepted friends below.</p>
+
+  <div class="controls">
+    <button id="addSystemBtn" class="room-btn system-btn" onclick="addSystem()">👥 &nbsp; ADD SYSTEM PLAYERS</button>
+    <button id="startBtn" class="room-btn start-btn" onclick="startGame()">▶ &nbsp; START GAME</button>
+  </div>
+  <div id="notice" class="notice"></div>
+
+  <div class="players-title">👥 Players in this room</div>
+  <div id="players" class="player-list"></div>
+  <div id="friendInvites" class="invite-wrap"></div>
+</section>
+
+<div class="footer-bar">
+  <div class="footer-item">🎲 <strong>Room Code:</strong> {{room_code}}</div>
+  <div class="footer-item">◷ <span id="footerStatus">Waiting for players...</span></div>
+  <div class="footer-item">❔ Need help? Contact your friends.</div>
+</div>
+</div>
+
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 const room="{{room_code}}", host="{{host}}", currentUser="{{session.get('username','')}}";
-const socket=io(); socket.emit("join_room_game",{room});
+let socket=null;
+try { if (typeof io === "function") socket=io(); } catch(e) { socket=null; }
+if(socket){ socket.emit("join_room_game",{room}); }
+
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+function attr(s){return esc(s).replace(/`/g,"&#96;");}
+function notice(msg,type="info"){
+ const el=document.getElementById("notice"); el.textContent=msg; el.className="notice show "+type;
+}
+function draw(d){
+ const players=Array.isArray(d.players)?d.players:[];
+ document.getElementById("playerCount").textContent=players.length;
+ document.getElementById("players").innerHTML=players.length ? players.map((p,i)=>{
+   const initials=(p.username||"?").slice(0,2).toUpperCase();
+   const bot=!!p.system;
+   return `<div class="player-row">
+     <div class="avatar ${bot?'bot':''}">${esc(initials)}</div>
+     <div class="player-main"><div class="player-name">${esc(p.username)}${p.username===currentUser?'<span class="you-tag">You</span>':''}${bot?'<span class="system-tag">SYSTEM / BOT</span>':''}</div></div>
+     <div class="ready"><span class="ready-dot">✓</span> Ready</div>
+     <div class="player-number">${i+1}</div>
+   </div>`;
+ }).join("") : `<div class="empty-state">Waiting for the first player...</div>`;
+ document.getElementById("footerStatus").textContent=players.length>=4?"4 players ready — game can start":"Waiting for players...";
+ document.getElementById("addSystemBtn").disabled=players.length>=4;
+ document.getElementById("startBtn").disabled=players.length<1;
+}
+function inviteFriend(username){ if(socket) socket.emit("invite_friend",{room,username}); }
+function addSystem(){
+ if(socket) socket.emit("add_system",{room});
+ else { fetch("/api/add-system/"+room,{method:"POST"}).then(r=>r.json()).then(d=>{if(d.error)notice(d.error,"error");else draw(d);}).catch(()=>notice("Could not add system players.","error")); }
+}
+async function startGame(){
+ const btn=document.getElementById("startBtn"); btn.disabled=true; btn.textContent="STARTING…";
+ try{
+   const res=await fetch("/api/start-game/"+room,{method:"POST",headers:{"Content-Type":"application/json"}});
+   const d=await res.json();
+   if(!res.ok){ notice(d.error||"Unable to start the game.","error"); btn.disabled=false; btn.textContent="▶  START GAME"; return; }
+   window.location.href=d.redirect||("/game/"+room);
+ }catch(e){
+   if(socket) socket.emit("start_game",{room});
+   else { notice("Could not connect to the game server. Please refresh once and try again.","error"); btn.disabled=false; btn.textContent="▶  START GAME"; }
+ }
+}
 async function loadFriends(){
+ try{
   const d=await (await fetch("/api/friends")).json();
   if(currentUser!==host){document.getElementById("friendInvites").innerHTML="";return;}
   document.getElementById("friendInvites").innerHTML=`<h3>🤝 Invite Friends</h3>`+
-    (d.friends.length?d.friends.map(f=>`<button class="friend-chip" onclick="inviteFriend('${escapeAttr(f.username)}')">＋ ${escapeHtml(f.username)}</button>`).join(""):
-    "<small>Accept friends on Home first.</small>");
+    (d.friends&&d.friends.length?d.friends.map(f=>`<button class="friend-chip" onclick="inviteFriend('${attr(f.username)}')">＋ ${esc(f.username)}</button>`).join(""):"<small>Accept friends on Home first.</small>");
+ }catch(e){}
 }
-function draw(d){
- document.getElementById("players").innerHTML="<h3>Players in room</h3>"+d.players.map((p,i)=>`<div class="player"><b>${i+1}. ${escapeHtml(p.username)}</b> ${p.system?"🤖 System":"👤 Player"}</div>`).join("");
+if(socket){
+ socket.on("room_update",draw);
+ socket.on("room_notice",d=>notice(d.message||"","info"));
+ socket.on("start_error",d=>{notice(d.message||"Unable to start game.","error");const b=document.getElementById("startBtn");b.disabled=false;b.textContent="▶  START GAME";});
+ socket.on("game_started",()=>{window.location.href="/game/"+room;});
 }
-function inviteFriend(username){socket.emit("invite_friend",{room,username});}
-function addSystem(){socket.emit("add_system",{room})}
-function startGame(){socket.emit("start_game",{room})}
-socket.on("room_update",draw);
-socket.on("room_notice",d=>document.getElementById("notice").textContent=d.message);
-socket.on("game_started",()=>location.href="/game/"+room);
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
-function escapeAttr(s){return escapeHtml(s).replace(/`/g,"&#96;");}
+fetch("/api/room/"+room).then(r=>r.json()).then(draw).catch(()=>{});
 loadFriends();
-</script></body></html>
+</script>
+</body>
+</html>
