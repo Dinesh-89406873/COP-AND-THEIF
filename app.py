@@ -1,12 +1,32 @@
 import os, random, string, sqlite3, time
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory, make_response
 from flask_socketio import SocketIO, join_room, emit
 
-app = Flask(__name__, static_folder="static", static_url_path="/static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "raja-rani-secret-key")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
-DB = os.path.join(os.path.dirname(__file__), "database.db")
+
+# Render-safe CSS fallback routes. These bypass any static-file/proxy issue while
+# keeping the normal /static URL available. Cache is disabled during deployments
+# so an older stylesheet cannot remain stuck in the browser/CDN cache.
+@app.route("/assets/css/style.css")
+def css_fallback():
+    response = make_response(send_from_directory(STATIC_DIR, "css/style.css"))
+    response.headers["Content-Type"] = "text/css; charset=utf-8"
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
+@app.route("/style.css")
+def css_short_fallback():
+    return css_fallback()
+
+@app.route("/favicon.ico")
+def favicon_ico():
+    return send_from_directory(STATIC_DIR, "favicon.svg", mimetype="image/svg+xml")
+DB = os.path.join(BASE_DIR, "database.db")
 
 CHARACTERS = {
     "King": {"tamil": "இராசா / அரசன்", "points": 1000},
@@ -52,6 +72,10 @@ def init_db():
     )""")
     con.commit()
     con.close()
+
+# Initialize the SQLite database when Gunicorn imports this module.
+# (The __main__ block does not run under Gunicorn.)
+init_db()
 
 def login_required(f):
     @wraps(f)
